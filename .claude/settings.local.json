@@ -18,7 +18,8 @@
       "PowerShell(cd \"C:\\\\Users\\\\jeeva\\\\AndroidStudioProjects\\\\Adblocker\"; $env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:PATH = \"$env:JAVA_HOME\\\\bin;$env:PATH\"; $env:GRADLE_USER_HOME = \"C:\\\\Users\\\\jeeva\\\\AndroidStudioProjects\\\\Adblocker\\\\.gradle-home\"; .\\\\gradlew.bat assembleDebug --no-configuration-cache 2>&1 | Select-Object -Last 40)",
       "PowerShell(cd \"C:\\\\Users\\\\jeeva\\\\AndroidStudioProjects\\\\Adblocker\"; $env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:PATH = \"$env:JAVA_HOME\\\\bin;$env:PATH\"; $env:GRADLE_USER_HOME = \"C:\\\\Users\\\\jeeva\\\\AndroidStudioProjects\\\\Adblocker\\\\.gradle-home\"; .\\\\gradlew.bat assembleDebug --no-configuration-cache 2>&1 | Select-Object -Last 10)",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)"
     ]
   }
 }
