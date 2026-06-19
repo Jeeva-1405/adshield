@@ -115,6 +115,19 @@ jobs:
             exit 1
           fi
 
+          # ── DEBUG: dump full asset structure so we can see what GitLab actually returns ──
+          echo "=== .assets.links[] (full objects) ==="
+          jq '.assets.links[]' patches_release.json
+          echo "=== .assets.links[].name ==="
+          jq -r '.assets.links[].name' patches_release.json
+          echo "=== .assets.sources[].url ==="
+          jq -r '.assets.sources[].url' patches_release.json
+          echo "=== .assets (top-level keys) ==="
+          jq '.assets | keys' patches_release.json
+          echo "=== tag_name ==="
+          jq -r '.tag_name' patches_release.json
+          # ── END DEBUG ────────────────────────────────────────────────────────────────
+
           PATCHES_URL=$(jq -r '.assets.links[] | select(.name | endswith(".rvp")) | .direct_asset_url' \
                         patches_release.json | head -1)
           PATCHES_VER=$(jq -r '.tag_name' patches_release.json)
