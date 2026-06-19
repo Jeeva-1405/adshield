@@ -26,17 +26,24 @@ Individual app cards remain available for manual control at any time.
 | YouTube Music | Same as YouTube |
 | Spotify | Same as YouTube |
 
-## Releasing patched APKs
+## Automated patch pipeline
 
-Build patched APKs with [ReVanced CLI](https://github.com/ReVanced/revanced-cli) and attach them to your latest GitHub release with these exact filenames:
+[![Build AdShield Patches](https://github.com/Jeeva-1405/adshield/actions/workflows/build-patches.yml/badge.svg)](https://github.com/Jeeva-1405/adshield/actions/workflows/build-patches.yml)
 
+Patched APKs are built and published automatically by GitHub Actions — no ReVanced Manager, no manual uploads.
+
+**Flow:** GitHub Actions → downloads APKs from APKPure → patches with ReVanced CLI → signs → publishes to GitHub Releases.
+
+**Schedule:** every Sunday midnight UTC, or trigger manually via the Actions tab.
+
+**Stable download URLs (always point to the latest build):**
 ```
-youtube-revanced.apk
-youtube-music-revanced.apk
-spotify-revanced.apk
+https://github.com/Jeeva-1405/adshield/releases/latest/download/youtube-revanced.apk
+https://github.com/Jeeva-1405/adshield/releases/latest/download/youtube-music-revanced.apk
+https://github.com/Jeeva-1405/adshield/releases/latest/download/spotify-revanced.apk
 ```
 
-AdShield reads `https://github.com/Jeeva-1405/adshield/releases/latest/download/<filename>`.
+See [PATCHES.md](PATCHES.md) for setup instructions, how to update app versions, and troubleshooting.
 
 ## Requirements
 

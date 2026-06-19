@@ -70,6 +70,7 @@ com.jeeva.adshield/
 | 2 | ✅ Done | DNS engine (VpnService) for Chrome |
 | 2.5 | ✅ Done | One-click setup orchestrator (SetupOrchestrator + PrimarySetupCard) |
 | 3 | ✅ Done | Patch engine — GitHub Releases download + PackageInstaller for YT/YTM/Spotify |
+| 3.5 | ✅ Done | CI/CD pipeline — automated ReVanced patching via GitHub Actions (.github/workflows/build-patches.yml) |
 | 4 | Pending | Stats, in-app auto-updater, polish, README |
 
 ## Coding conventions
@@ -80,6 +81,15 @@ com.jeeva.adshield/
 - All long-running work in `viewModelScope` or `IO` dispatcher
 - Comments only where logic is non-obvious — code should self-document
 - Every public function gets a one-line KDoc comment
+
+## CI/CD pipeline
+- **Workflow:** `.github/workflows/build-patches.yml`
+- **Trigger:** manual (`workflow_dispatch`) + weekly cron (Sunday midnight UTC)
+- **What it does:** downloads APKs from APKPure → patches with `revanced-cli` → signs → publishes to GitHub Releases as `vYYYY.MM.DD`
+- **Secrets required:** `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD` (see PATCHES.md)
+- **Target app versions** are hardcoded at the top of the workflow file — update them when ReVanced drops support
+- **Stable download URLs** (used by `PatchedApkDownloader`): `.../releases/latest/download/youtube-revanced.apk` etc.
+- Full ops guide in `PATCHES.md`
 
 ## Distribution
 - License: **GPL-3.0** (required — we link against revanced-patcher which is GPL-3)
