@@ -57,58 +57,94 @@ jobs:
       - name: Download ReVanced CLI and patches
         id: tools
         run: |
-          # Fetch each release JSON once; extract URL + version tag from the same response.
-          # Use endswith() instead of test() regex to avoid backslash-escaping issues in YAML.
+          # -sS  : silent but print errors (SSL failures, network errors)
+          # -L   : follow redirects
+          # -o   : save body to file so we can print it on failure
+          # -w   : write HTTP status code to stdout (separated from body)
+          # No -f: we check the HTTP code ourselves so we can show the response body
 
-          CLI_JSON=$(curl -sf \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/ReVanced/revanced-cli/releases/latest")
-          CLI_URL=$(echo "$CLI_JSON" \
-            | jq -r '.assets[] | select(.name | endswith(".jar")) | .browser_download_url' \
-            | head -1)
-          CLI_VER=$(echo "$CLI_JSON" | jq -r '.tag_name')
+          api_get() {
+            local url=$1 outfile=$2
+            local http_code
+            http_code=$(curl -sSL \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Accept: application/vnd.github+json" \
+              -o "$outfile" \
+              -w "%{http_code}" \
+              "$url")
+            echo "HTTP $http_code  ←  $url"
+            if [ "$http_code" != "200" ]; then
+              echo "::error::GitHub API returned HTTP $http_code"
+              echo "--- response body ---"
+              cat "$outfile"
+              echo "--- end ---"
+              return 1
+            fi
+          }
 
-          PATCHES_JSON=$(curl -sf \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/ReVanced/revanced-patches/releases/latest")
-          PATCHES_URL=$(echo "$PATCHES_JSON" \
-            | jq -r '.assets[] | select(.name | (endswith(".rvp") or endswith(".jar"))) | .browser_download_url' \
-            | head -1)
-          PATCHES_VER=$(echo "$PATCHES_JSON" | jq -r '.tag_name')
+          api_get \
+            "https://api.github.com/repos/ReVanced/revanced-cli/releases/latest" \
+            cli_release.json
 
-          # Fail loudly if either URL is empty — prevents a silent curl to nowhere
-          if [ -z "$CLI_URL" ]; then
-            echo "::error::Could not resolve ReVanced CLI download URL. Check the API response above."
+          CLI_URL=$(jq -r '.assets[] | select(.name | endswith(".jar")) | .browser_download_url' \
+                    cli_release.json | head -1)
+          CLI_VER=$(jq -r '.tag_name' cli_release.json)
+
+          if [ -z "$CLI_URL" ] || [ "$CLI_URL" = "null" ]; then
+            echo "::error::No .jar asset in revanced-cli release. Available assets:"
+            jq -r '.assets[].name' cli_release.json
             exit 1
           fi
-          if [ -z "$PATCHES_URL" ]; then
-            echo "::error::Could not resolve ReVanced Patches download URL. Check the API response above."
+
+          api_get \
+            "https://api.github.com/repos/ReVanced/revanced-patches/releases/latest" \
+            patches_release.json
+
+          PATCHES_URL=$(jq -r '.assets[] | select(.name | (endswith(".rvp") or endswith(".jar"))) | .browser_download_url' \
+                        patches_release.json | head -1)
+          PATCHES_VER=$(jq -r '.tag_name' patches_release.json)
+
+          if [ -z "$PATCHES_URL" ] || [ "$PATCHES_URL" = "null" ]; then
+            echo "::error::No .rvp or .jar asset in revanced-patches release. Available assets:"
+            jq -r '.assets[].name' patches_release.json
             exit 1
           fi
 
-          echo "CLI URL:     $CLI_URL"
-          echo "Patches URL: $PATCHES_URL"
+          echo "CLI URL:     $CLI_URL  ($CLI_VER)"
+          echo "Patches URL: $PATCHES_URL  ($PATCHES_VER)"
 
-          curl -sfL "$CLI_URL"     -o revanced-cli.jar
-          curl -sfL "$PATCHES_URL" -o revanced-patches.rvp
+          curl -sSL --fail-with-body "$CLI_URL"     -o revanced-cli.jar
+          curl -sSL --fail-with-body "$PATCHES_URL" -o revanced-patches.rvp
 
           echo "CLI_VER=$CLI_VER"         >> $GITHUB_OUTPUT
           echo "PATCHES_VER=$PATCHES_VER" >> $GITHUB_OUTPUT
-          echo "ReVanced CLI $CLI_VER, Patches $PATCHES_VER"
+          echo "Downloads complete: CLI $CLI_VER, Patches $PATCHES_VER"
 
       # ── Download APKs from APKPure ─────────────────────────────────────────────
       - name: Install apkeep
         run: |
-          APKEEP_URL=$(curl -sf \
+          HTTP=$(curl -sSL \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/EFForg/apkeep/releases/latest" \
-          | jq -r '.assets[] | select(.name | (contains("x86_64") and contains("linux"))) | .browser_download_url' \
-          | head -1)
-          if [ -z "$APKEEP_URL" ]; then
-            echo "::error::Could not resolve apkeep download URL"
+            -H "Accept: application/vnd.github+json" \
+            -o apkeep_release.json \
+            -w "%{http_code}" \
+            "https://api.github.com/repos/EFForg/apkeep/releases/latest")
+          echo "apkeep API: HTTP $HTTP"
+          if [ "$HTTP" != "200" ]; then
+            echo "::error::GitHub API returned HTTP $HTTP for apkeep"
+            cat apkeep_release.json
             exit 1
           fi
-          curl -sfL "$APKEEP_URL" -o apkeep
+
+          APKEEP_URL=$(jq -r '.assets[] | select(.name | (contains("x86_64") and contains("linux"))) | .browser_download_url' \
+                       apkeep_release.json | head -1)
+          if [ -z "$APKEEP_URL" ] || [ "$APKEEP_URL" = "null" ]; then
+            echo "::error::No x86_64 Linux asset found for apkeep. Available assets:"
+            jq -r '.assets[].name' apkeep_release.json
+            exit 1
+          fi
+
+          curl -sSL --fail-with-body "$APKEEP_URL" -o apkeep
           chmod +x apkeep
 
       - name: Download APKs from APKPure
