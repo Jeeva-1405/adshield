@@ -1,12 +1,15 @@
 package com.jeeva.adshield.ui.home
 
-import android.widget.Toast
+import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -22,14 +25,20 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -47,14 +56,13 @@ private data class AppDisplayInfo(
     val packageName: String,
     val icon: ImageVector,
     val actionLabel: String,
-    val phaseLabel: String,
 )
 
 private val APP_DISPLAY_INFO = listOf(
-    AppDisplayInfo("Chrome",        TargetApps.CHROME,        Icons.Rounded.Language,    "Enable DNS", "Phase 2"),
-    AppDisplayInfo("YouTube",       TargetApps.YOUTUBE,       Icons.Rounded.PlayCircle,  "Patch",      "Phase 3"),
-    AppDisplayInfo("YouTube Music", TargetApps.YOUTUBE_MUSIC, Icons.Rounded.LibraryMusic,"Patch",      "Phase 3"),
-    AppDisplayInfo("Spotify",       TargetApps.SPOTIFY,       Icons.Rounded.Headset,     "Patch",      "Phase 3"),
+    AppDisplayInfo("Chrome",        TargetApps.CHROME,        Icons.Rounded.Language,     "Enable DNS"),
+    AppDisplayInfo("YouTube",       TargetApps.YOUTUBE,       Icons.Rounded.PlayCircle,   "Patch"),
+    AppDisplayInfo("YouTube Music", TargetApps.YOUTUBE_MUSIC, Icons.Rounded.LibraryMusic, "Patch"),
+    AppDisplayInfo("Spotify",       TargetApps.SPOTIFY,       Icons.Rounded.Headset,      "Patch"),
 )
 
 /** Main dashboard showing ad-blocking status for each of the 4 target apps. */
@@ -63,27 +71,42 @@ private val APP_DISPLAY_INFO = listOf(
 fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val snackbar = remember { SnackbarHostState() }
+
+    // Launch system VPN permission dialog when the ViewModel requests it
+    val vpnLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        viewModel.onVpnPermissionResult(result.resultCode == Activity.RESULT_OK, context)
+    }
+    LaunchedEffect(uiState.vpnPermissionIntent) {
+        uiState.vpnPermissionIntent?.let { vpnLauncher.launch(it) }
+    }
+
+    // Show errors in a snackbar
+    LaunchedEffect(uiState.errorMessage) {
+        uiState.errorMessage?.let {
+            snackbar.showSnackbar(it, duration = SnackbarDuration.Long)
+            viewModel.clearError()
+        }
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        text = "AdShield",
-                        fontWeight = FontWeight.Bold,
-                    )
-                },
+                title = { Text("AdShield", fontWeight = FontWeight.Bold) },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary,
                 ),
             )
         },
-    ) { paddingValues ->
+        snackbarHost = { SnackbarHost(snackbar) },
+    ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                .padding(padding)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -102,14 +125,31 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
                 )
             } else {
                 APP_DISPLAY_INFO.forEach { info ->
-                    val status = uiState.appStatuses[info.packageName] ?: TargetAppStatus.NotInstalled
+                    val status       = uiState.appStatuses[info.packageName] ?: TargetAppStatus.NotInstalled
+                    val isPatching   = uiState.patchingPkg == info.packageName
+                    val isChrome     = info.packageName == TargetApps.CHROME
+
+                    val actionLabel = when {
+                        isChrome && uiState.isDnsRunning -> "Disable DNS"
+                        isChrome                          -> "Enable DNS"
+                        isPatching                        -> "Patching…"
+                        else                              -> info.actionLabel
+                    }
+
                     AppCard(
-                        name = info.name,
-                        icon = info.icon,
-                        status = status,
-                        actionLabel = info.actionLabel,
-                        onAction = {
-                            Toast.makeText(context, "Coming in ${info.phaseLabel}", Toast.LENGTH_SHORT).show()
+                        name          = info.name,
+                        icon          = info.icon,
+                        status        = status,
+                        actionLabel   = actionLabel,
+                        actionEnabled = !isPatching,
+                        progressStep  = if (isPatching) uiState.patchStep else null,
+                        onAction      = {
+                            if (isChrome) {
+                                if (uiState.isDnsRunning) viewModel.onDisableDns(context)
+                                else viewModel.onEnableDns(context)
+                            } else {
+                                viewModel.onPatch(context, info.packageName)
+                            }
                         },
                     )
                 }
@@ -125,6 +165,8 @@ fun AppCard(
     icon: ImageVector,
     status: TargetAppStatus,
     actionLabel: String,
+    actionEnabled: Boolean = true,
+    progressStep: String? = null,
     onAction: () -> Unit,
 ) {
     ElevatedCard(modifier = Modifier.fillMaxWidth()) {
@@ -140,7 +182,7 @@ fun AppCard(
                 tint = statusTint(status),
                 modifier = Modifier.size(40.dp),
             )
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = name,
@@ -153,30 +195,44 @@ fun AppCard(
                     color = statusTint(status),
                 )
             }
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(Modifier.width(8.dp))
             when (status) {
-                is TargetAppStatus.NotInstalled -> OutlinedButton(onClick = {}, enabled = false) {
-                    Text("Not Installed")
-                }
-                else -> Button(onClick = onAction) {
-                    Text(actionLabel)
-                }
+                is TargetAppStatus.NotInstalled ->
+                    OutlinedButton(onClick = {}, enabled = false) { Text("Not Installed") }
+                else ->
+                    Button(onClick = onAction, enabled = actionEnabled) { Text(actionLabel) }
             }
+        }
+
+        if (progressStep != null) {
+            LinearProgressIndicator(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+            )
+            Text(
+                text = progressStep,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp, top = 4.dp),
+            )
+        } else {
+            Spacer(Modifier.height(0.dp))
         }
     }
 }
 
 @Composable
 private fun statusTint(status: TargetAppStatus): Color = when (status) {
-    is TargetAppStatus.NotInstalled -> MaterialTheme.colorScheme.outline
-    is TargetAppStatus.Installed    -> MaterialTheme.colorScheme.primary
+    is TargetAppStatus.NotInstalled  -> MaterialTheme.colorScheme.outline
+    is TargetAppStatus.Installed     -> MaterialTheme.colorScheme.primary
     is TargetAppStatus.BlockerActive -> Color(0xFF2E7D32)
-    is TargetAppStatus.Patched      -> Color(0xFF1B5E20)
+    is TargetAppStatus.Patched       -> Color(0xFF1B5E20)
 }
 
 private fun statusLabel(status: TargetAppStatus): String = when (status) {
     is TargetAppStatus.NotInstalled  -> "Not installed"
     is TargetAppStatus.Installed     -> "Installed • v${status.versionName}"
-    is TargetAppStatus.BlockerActive -> "Blocker active"
+    is TargetAppStatus.BlockerActive -> "DNS blocker active"
     is TargetAppStatus.Patched       -> "Patched"
 }

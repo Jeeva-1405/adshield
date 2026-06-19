@@ -1,11 +1,21 @@
 package com.jeeva.adshield.ui.home
 
 import android.app.Application
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.net.VpnService
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.jeeva.adshield.core.detector.AppDetector
 import com.jeeva.adshield.core.detector.TargetAppStatus
+import com.jeeva.adshield.core.dns.DnsVpnService
+import com.jeeva.adshield.core.patcher.PatcherService
+import com.jeeva.adshield.data.prefs.AppPreferences
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,25 +25,116 @@ import kotlinx.coroutines.launch
 data class HomeUiState(
     val appStatuses: Map<String, TargetAppStatus> = emptyMap(),
     val isLoading: Boolean = true,
+    val isDnsRunning: Boolean = false,
+    val vpnPermissionIntent: Intent? = null,
+    val patchingPkg: String? = null,
+    val patchStep: String? = null,
+    val patchProgress: Int = 0,
+    val errorMessage: String? = null,
 )
 
-/** ViewModel for the home dashboard; runs app detection on the IO dispatcher. */
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val detector = AppDetector(application.packageManager)
+    private val prefs = AppPreferences(application)
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
+    private val patchReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val step     = intent.getStringExtra(PatcherService.EXTRA_STEP)
+            val progress = intent.getIntExtra(PatcherService.EXTRA_PROGRESS, 0)
+            val done     = intent.getBooleanExtra(PatcherService.EXTRA_DONE, false)
+            val error    = intent.getStringExtra(PatcherService.EXTRA_ERROR)
+            val pkg      = intent.getStringExtra(PatcherService.EXTRA_PACKAGE)
+
+            _uiState.update { s ->
+                when {
+                    done  -> s.copy(patchingPkg = null, patchStep = null)
+                    error != null -> s.copy(patchingPkg = null, patchStep = null, errorMessage = error)
+                    else  -> s.copy(patchStep = step, patchProgress = progress)
+                }
+            }
+
+            if (done && pkg != null) {
+                viewModelScope.launch(Dispatchers.IO) {
+                    prefs.markPatched(pkg)
+                    refresh()
+                }
+            }
+        }
+    }
+
     init {
+        ContextCompat.registerReceiver(
+            application,
+            patchReceiver,
+            IntentFilter(PatcherService.ACTION_PROGRESS),
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
         refresh()
     }
 
-    /** Re-scans all target apps and updates [uiState]. */
+    /** Re-scans installed apps and overlays live engine state. */
     fun refresh() {
         viewModelScope.launch(Dispatchers.IO) {
-            val statuses = detector.detectAll()
-            _uiState.update { it.copy(appStatuses = statuses, isLoading = false) }
+            val patched  = prefs.getPatchedApps()
+            val statuses = detector.detectAll(DnsVpnService.isRunning, patched)
+            _uiState.update { it.copy(
+                appStatuses  = statuses,
+                isLoading    = false,
+                isDnsRunning = DnsVpnService.isRunning,
+            )}
         }
+    }
+
+    /** Called when the user taps "Enable DNS" on the Chrome card. */
+    fun onEnableDns(context: Context) {
+        val perm = VpnService.prepare(context)
+        if (perm == null) startDns(context)
+        else _uiState.update { it.copy(vpnPermissionIntent = perm) }
+    }
+
+    /** Called with the result from the system VPN permission dialog. */
+    fun onVpnPermissionResult(granted: Boolean, context: Context) {
+        _uiState.update { it.copy(vpnPermissionIntent = null) }
+        if (granted) startDns(context)
+    }
+
+    /** Called when the user taps "Disable DNS". */
+    fun onDisableDns(context: Context) {
+        context.startService(Intent(context, DnsVpnService::class.java).apply {
+            action = DnsVpnService.ACTION_STOP
+        })
+        viewModelScope.launch {
+            delay(400)
+            refresh()
+        }
+    }
+
+    /** Called when the user taps "Patch" on a YouTube / YT Music / Spotify card. */
+    fun onPatch(context: Context, pkg: String) {
+        _uiState.update { it.copy(patchingPkg = pkg, patchStep = "Starting…", patchProgress = 0) }
+        context.startForegroundService(Intent(context, PatcherService::class.java).apply {
+            putExtra(PatcherService.EXTRA_PACKAGE, pkg)
+        })
+    }
+
+    fun clearError() = _uiState.update { it.copy(errorMessage = null) }
+
+    private fun startDns(context: Context) {
+        context.startForegroundService(Intent(context, DnsVpnService::class.java).apply {
+            action = DnsVpnService.ACTION_START
+        })
+        viewModelScope.launch {
+            delay(600)   // give the service time to establish the tunnel
+            refresh()
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        getApplication<Application>().unregisterReceiver(patchReceiver)
     }
 }

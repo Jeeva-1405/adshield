@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:PATH = \"$env:JAVA_HOME\\\\bin;$env:PATH\"; cd \"C:\\\\Users\\\\jeeva\\\\AndroidStudioProjects\\\\Adblocker\"; .\\\\gradlew assembleDebug 2>&1 | Select-Object -Last 80)",
+      "PowerShell(New-Item *)",
+      "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:PATH = \"$env:JAVA_HOME\\\\bin;$env:PATH\"; $env:GRADLE_USER_HOME = \"C:\\\\Users\\\\jeeva\\\\AndroidStudioProjects\\\\Adblocker\\\\.gradle-home\"; cd \"C:\\\\Users\\\\jeeva\\\\AndroidStudioProjects\\\\Adblocker\"; .\\\\gradlew assembleDebug 2>&1 | Select-Object -Last 80)",
+      "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:PATH = \"$env:JAVA_HOME\\\\bin;$env:PATH\"; $env:GRADLE_USER_HOME = \"C:\\\\Users\\\\jeeva\\\\AndroidStudioProjects\\\\Adblocker\\\\.gradle-home\"; cd \"C:\\\\Users\\\\jeeva\\\\AndroidStudioProjects\\\\Adblocker\"; .\\\\gradlew assembleDebug 2>&1 | Select-Object -Last 60)",
+      "PowerShell(& \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\\\\bin\\\\keytool\" -genkey -v -keystore \"C:\\\\Users\\\\jeeva\\\\AndroidStudioProjects\\\\Adblocker\\\\debug.keystore\" -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname \"CN=Android Debug,O=Android,C=US\" 2>&1)",
+      "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:PATH = \"$env:JAVA_HOME\\\\bin;$env:PATH\"; $env:GRADLE_USER_HOME = \"C:\\\\Users\\\\jeeva\\\\AndroidStudioProjects\\\\Adblocker\\\\.gradle-home\"; cd \"C:\\\\Users\\\\jeeva\\\\AndroidStudioProjects\\\\Adblocker\"; .\\\\gradlew assembleDebug 2>&1 | Select-Object -Last 30)",
+      "Bash(xargs wc -l)",
+      "Bash(./gradlew assembleDebug)",
+      "PowerShell(cd \"C:\\\\Users\\\\jeeva\\\\AndroidStudioProjects\\\\Adblocker\"; $env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:PATH = \"$env:JAVA_HOME\\\\bin;$env:PATH\"; .\\\\gradlew.bat assembleDebug 2>&1 | Select-Object -Last 80)",
+      "PowerShell(cd \"C:\\\\Users\\\\jeeva\\\\AndroidStudioProjects\\\\Adblocker\"; $env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:PATH = \"$env:JAVA_HOME\\\\bin;$env:PATH\"; $env:GRADLE_USER_HOME = \"C:\\\\Users\\\\jeeva\\\\AndroidStudioProjects\\\\Adblocker\\\\.gradle-home\"; .\\\\gradlew.bat assembleDebug 2>&1 | Select-Object -Last 80)",
+      "PowerShell(cd \"C:\\\\Users\\\\jeeva\\\\AndroidStudioProjects\\\\Adblocker\"; $env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:PATH = \"$env:JAVA_HOME\\\\bin;$env:PATH\"; $env:GRADLE_USER_HOME = \"C:\\\\Users\\\\jeeva\\\\AndroidStudioProjects\\\\Adblocker\\\\.gradle-home\"; .\\\\gradlew.bat assembleDebug --no-configuration-cache 2>&1 | Select-Object -Last 60)"
+    ]
+  }
+}
