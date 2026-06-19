@@ -96,17 +96,32 @@ jobs:
             exit 1
           fi
 
-          api_get \
-            "https://api.github.com/repos/ReVanced/revanced-patches/releases/latest" \
-            patches_release.json
+          # revanced-patches moved to GitLab after GitHub DMCA takedown (March 2026).
+          # GitLab public repos need no Authorization header.
+          # Response shape differs from GitHub:
+          #   GitHub assets: .assets[].browser_download_url
+          #   GitLab assets: .assets.links[].direct_asset_url
+          # revanced-integrations is bundled inside the .rvp since CLI v4 — no separate download needed.
+          PATCHES_HTTP=$(curl -sSL \
+            -o patches_release.json \
+            -w "%{http_code}" \
+            "https://gitlab.com/api/v4/projects/revanced%2Frevanced-patches/releases/permalink/latest")
+          echo "HTTP $PATCHES_HTTP  ←  GitLab revanced-patches"
+          if [ "$PATCHES_HTTP" != "200" ]; then
+            echo "::error::GitLab API returned HTTP $PATCHES_HTTP for revanced-patches"
+            echo "--- response body ---"
+            cat patches_release.json
+            echo "--- end ---"
+            exit 1
+          fi
 
-          PATCHES_URL=$(jq -r '.assets[] | select(.name | (endswith(".rvp") or endswith(".jar"))) | .browser_download_url' \
+          PATCHES_URL=$(jq -r '.assets.links[] | select(.name | endswith(".rvp")) | .direct_asset_url' \
                         patches_release.json | head -1)
           PATCHES_VER=$(jq -r '.tag_name' patches_release.json)
 
           if [ -z "$PATCHES_URL" ] || [ "$PATCHES_URL" = "null" ]; then
-            echo "::error::No .rvp or .jar asset in revanced-patches release. Available assets:"
-            jq -r '.assets[].name' patches_release.json
+            echo "::error::No .rvp asset in revanced-patches GitLab release. Available link names:"
+            jq -r '.assets.links[].name' patches_release.json
             exit 1
           fi
 
