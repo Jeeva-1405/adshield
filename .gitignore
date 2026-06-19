@@ -1,0 +1,28 @@
+# Build output
+*.iml
+.gradle
+/build
+/captures
+/app/build
+
+# IDE
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+
+# Android
+.externalNativeBuild
+.cxx
+local.properties
+
+# Signing — NEVER commit keystores
+*.jks
+*.keystore
+keystore.properties
+
+# Local Gradle cache (used by build scripts in this session)
+.gradle-home/

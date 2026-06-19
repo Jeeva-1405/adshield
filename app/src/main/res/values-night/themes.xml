@@ -1,0 +1,4 @@
+<resources>
+    <!-- Minimal XML theme — all visual theming is handled by Compose Material 3 -->
+    <style name="Theme.AdShield" parent="android:Theme.Material.NoActionBar" />
+</resources>

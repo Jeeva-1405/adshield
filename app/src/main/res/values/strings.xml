@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">AdShield</string>
+    <string name="channel_vpn_name">VPN Service</string>
+    <string name="channel_vpn_description">AdShield DNS blocker is running</string>
+</resources>
