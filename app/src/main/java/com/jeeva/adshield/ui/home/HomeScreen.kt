@@ -50,22 +50,26 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jeeva.adshield.core.detector.TargetAppStatus
 import com.jeeva.adshield.core.detector.TargetApps
+import com.jeeva.adshield.core.orchestrator.SetupStep
+import com.jeeva.adshield.core.orchestrator.SetupStepState
+import com.jeeva.adshield.ui.components.PrimarySetupCard
 
 private data class AppDisplayInfo(
     val name: String,
     val packageName: String,
     val icon: ImageVector,
     val actionLabel: String,
+    val setupStep: SetupStep,
 )
 
 private val APP_DISPLAY_INFO = listOf(
-    AppDisplayInfo("Chrome",        TargetApps.CHROME,        Icons.Rounded.Language,     "Enable DNS"),
-    AppDisplayInfo("YouTube",       TargetApps.YOUTUBE,       Icons.Rounded.PlayCircle,   "Patch"),
-    AppDisplayInfo("YouTube Music", TargetApps.YOUTUBE_MUSIC, Icons.Rounded.LibraryMusic, "Patch"),
-    AppDisplayInfo("Spotify",       TargetApps.SPOTIFY,       Icons.Rounded.Headset,      "Patch"),
+    AppDisplayInfo("Chrome",        TargetApps.CHROME,        Icons.Rounded.Language,     "Enable DNS",  SetupStep.ChromeDns),
+    AppDisplayInfo("YouTube",       TargetApps.YOUTUBE,       Icons.Rounded.PlayCircle,   "Patch",       SetupStep.YouTubePatch),
+    AppDisplayInfo("YouTube Music", TargetApps.YOUTUBE_MUSIC, Icons.Rounded.LibraryMusic, "Patch",       SetupStep.YtMusicPatch),
+    AppDisplayInfo("Spotify",       TargetApps.SPOTIFY,       Icons.Rounded.Headset,      "Patch",       SetupStep.SpotifyPatch),
 )
 
-/** Main dashboard showing ad-blocking status for each of the 4 target apps. */
+/** Main dashboard: hero setup card + per-app status cards. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
@@ -73,7 +77,7 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
     val context = LocalContext.current
     val snackbar = remember { SnackbarHostState() }
 
-    // Launch system VPN permission dialog when the ViewModel requests it
+    // Single launcher for VPN consent — serves both standalone DNS and the orchestrator
     val vpnLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -83,7 +87,6 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
         uiState.vpnPermissionIntent?.let { vpnLauncher.launch(it) }
     }
 
-    // Show errors in a snackbar
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let {
             snackbar.showSnackbar(it, duration = SnackbarDuration.Long)
@@ -111,38 +114,54 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                text = "Block ads in Chrome, YouTube, YouTube Music, and Spotify.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            // ── Hero setup card ────────────────────────────────────────────────
+            PrimarySetupCard(
+                state   = uiState.setupState,
+                onStart = { viewModel.startSetup() },
+                onRerun = { viewModel.startSetup() },
             )
 
             if (uiState.isLoading) {
                 CircularProgressIndicator(
                     modifier = Modifier
                         .align(Alignment.CenterHorizontally)
-                        .padding(top = 32.dp),
+                        .padding(top = 16.dp),
                 )
             } else {
+                // ── Per-app cards ──────────────────────────────────────────────
                 APP_DISPLAY_INFO.forEach { info ->
-                    val status       = uiState.appStatuses[info.packageName] ?: TargetAppStatus.NotInstalled
-                    val isPatching   = uiState.patchingPkg == info.packageName
-                    val isChrome     = info.packageName == TargetApps.CHROME
+                    val status        = uiState.appStatuses[info.packageName] ?: TargetAppStatus.NotInstalled
+                    val orchestratedStep = uiState.setupStepStates[info.setupStep]
+                    val isOrchestratorActive = orchestratedStep is SetupStepState.Running
+                    val isManualPatching     = uiState.patchingPkg == info.packageName
+                    val isChrome             = info.packageName == TargetApps.CHROME
 
                     val actionLabel = when {
                         isChrome && uiState.isDnsRunning -> "Disable DNS"
+                        isChrome && isOrchestratorActive -> "Setting up…"
                         isChrome                          -> "Enable DNS"
-                        isPatching                        -> "Patching…"
+                        isOrchestratorActive              -> "Patching…"
+                        isManualPatching                  -> "Patching…"
                         else                              -> info.actionLabel
                     }
+
+                    val progressStep: String? = when {
+                        isOrchestratorActive ->
+                            (uiState.setupState as? SetupUiState.InProgress)?.stepDetail
+                        isManualPatching     -> uiState.patchStep
+                        else                 -> null
+                    }
+
+                    // Buttons are disabled while the orchestrator owns the flow
+                    val actionEnabled = !uiState.isSetupRunning && !isManualPatching
 
                     AppCard(
                         name          = info.name,
                         icon          = info.icon,
                         status        = status,
                         actionLabel   = actionLabel,
-                        actionEnabled = !isPatching,
-                        progressStep  = if (isPatching) uiState.patchStep else null,
+                        actionEnabled = actionEnabled,
+                        progressStep  = progressStep,
                         onAction      = {
                             if (isChrome) {
                                 if (uiState.isDnsRunning) viewModel.onDisableDns(context)

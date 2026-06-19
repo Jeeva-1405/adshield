@@ -7,15 +7,18 @@ A single Android app that blocks ads in four target apps: **Chrome, YouTube, You
 Jeeva — final-year ECE student, building this as a placement portfolio project.
 
 ## Architecture
-Two engines behind one Jetpack Compose UI:
+Two engines behind one Jetpack Compose UI, orchestrated by a single one-click setup flow:
 
 1. **DNS Engine** — Local `VpnService` that intercepts DNS queries and drops requests to ad domains. Used for Chrome and any third-party app using AdMob/Unity/AppLovin.
-2. **Patch Engine** — Wraps the open-source `revanced-patcher` library to download, patch, sign, and install modified versions of YouTube, YT Music, and Spotify.
+2. **Patch Engine** — Downloads pre-patched APKs from GitHub Releases and installs them via `PackageInstaller`. Targets YouTube, YT Music, and Spotify.
+3. **Setup Orchestrator** — Drives the "Block All Ads" one-click flow; runs DNS + all patch steps sequentially, handles skip logic, and surfaces progress to the UI via `Flow<SetupProgress>`.
 
 ```
 AdShield
-├── DNS Engine  (VpnService)        → Chrome
-└── Patch Engine (revanced-patcher) → YouTube, YT Music, Spotify
+├── SetupOrchestrator               → one-click "Block All Ads" flow
+│   ├── DNS Engine  (VpnService)    → Chrome
+│   └── Patch Engine (PackageInstaller + GitHub Releases) → YouTube, YT Music, Spotify
+└── Per-app manual controls         → individual card buttons (always available)
 ```
 
 ## Tech stack (non-negotiable)
@@ -36,16 +39,18 @@ com.jeeva.adshield/
 ├── ui/
 │   ├── home/           ← main dashboard (HomeScreen, HomeViewModel)
 │   ├── theme/          ← Material 3 theme (Color, Type, Theme)
-│   └── components/     ← reusable Composables
+│   └── components/     ← reusable Composables (PrimarySetupCard)
 ├── core/
 │   ├── detector/       ← installed-app detection
-│   ├── dns/            ← VpnService + packet parsing
-│   └── patcher/        ← revanced-patcher integration
+│   ├── dns/            ← VpnService + DNS packet interception
+│   ├── patcher/        ← APK download + PackageInstaller helpers
+│   └── orchestrator/   ← SetupOrchestrator + SetupStep / SetupProgress types
 ├── data/
 │   ├── db/             ← Room entities, DAOs
-│   ├── prefs/          ← DataStore
+│   ├── prefs/          ← DataStore (AppPreferences)
+│   ├── network/        ← PatchedApkDownloader (OkHttp + Flow<DownloadProgress>)
 │   └── blocklist/      ← blocklist fetch + parse
-├── service/            ← foreground services
+├── service/            ← DnsVpnService, PatcherService, InstallReceiver
 └── util/               ← extensions, helpers
 ```
 
@@ -62,8 +67,9 @@ com.jeeva.adshield/
 |---|---|---|
 | 0 | ✅ Done | Gradle project, Compose scaffold, base theme |
 | 1 | ✅ Done | Target-app detection + dashboard UI with 4 cards |
-| 2 | Pending | DNS engine (VpnService) for Chrome |
-| 3 | Pending | Patch engine — wraps revanced-patcher for YT/YTM/Spotify |
+| 2 | ✅ Done | DNS engine (VpnService) for Chrome |
+| 2.5 | ✅ Done | One-click setup orchestrator (SetupOrchestrator + PrimarySetupCard) |
+| 3 | ✅ Done | Patch engine — GitHub Releases download + PackageInstaller for YT/YTM/Spotify |
 | 4 | Pending | Stats, in-app auto-updater, polish, README |
 
 ## Coding conventions

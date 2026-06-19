@@ -55,6 +55,11 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <!-- Receives PackageInstaller session callbacks for the setup orchestrator -->
+        <receiver
+            android:name=".service.InstallReceiver"
+            android:exported="true" />
+
         <!-- FileProvider for sharing downloaded APKs with the system installer -->
         <provider
             android:name="androidx.core.content.FileProvider"

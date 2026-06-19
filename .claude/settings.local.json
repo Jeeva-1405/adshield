@@ -11,7 +11,9 @@
       "Bash(./gradlew assembleDebug)",
       "PowerShell(cd \"C:\\\\Users\\\\jeeva\\\\AndroidStudioProjects\\\\Adblocker\"; $env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:PATH = \"$env:JAVA_HOME\\\\bin;$env:PATH\"; .\\\\gradlew.bat assembleDebug 2>&1 | Select-Object -Last 80)",
       "PowerShell(cd \"C:\\\\Users\\\\jeeva\\\\AndroidStudioProjects\\\\Adblocker\"; $env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:PATH = \"$env:JAVA_HOME\\\\bin;$env:PATH\"; $env:GRADLE_USER_HOME = \"C:\\\\Users\\\\jeeva\\\\AndroidStudioProjects\\\\Adblocker\\\\.gradle-home\"; .\\\\gradlew.bat assembleDebug 2>&1 | Select-Object -Last 80)",
-      "PowerShell(cd \"C:\\\\Users\\\\jeeva\\\\AndroidStudioProjects\\\\Adblocker\"; $env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:PATH = \"$env:JAVA_HOME\\\\bin;$env:PATH\"; $env:GRADLE_USER_HOME = \"C:\\\\Users\\\\jeeva\\\\AndroidStudioProjects\\\\Adblocker\\\\.gradle-home\"; .\\\\gradlew.bat assembleDebug --no-configuration-cache 2>&1 | Select-Object -Last 60)"
+      "PowerShell(cd \"C:\\\\Users\\\\jeeva\\\\AndroidStudioProjects\\\\Adblocker\"; $env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:PATH = \"$env:JAVA_HOME\\\\bin;$env:PATH\"; $env:GRADLE_USER_HOME = \"C:\\\\Users\\\\jeeva\\\\AndroidStudioProjects\\\\Adblocker\\\\.gradle-home\"; .\\\\gradlew.bat assembleDebug --no-configuration-cache 2>&1 | Select-Object -Last 60)",
+      "PowerShell(cd \"C:\\\\Users\\\\jeeva\\\\AndroidStudioProjects\\\\Adblocker\"; $env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:PATH = \"$env:JAVA_HOME\\\\bin;$env:PATH\"; $env:GRADLE_USER_HOME = \"C:\\\\Users\\\\jeeva\\\\AndroidStudioProjects\\\\Adblocker\\\\.gradle-home\"; .\\\\gradlew.bat assembleDebug --no-configuration-cache 2>&1 | Select-Object -Last 20)",
+      "PowerShell(Get-Item \"C:\\\\Users\\\\jeeva\\\\AndroidStudioProjects\\\\Adblocker\\\\app\\\\build\\\\outputs\\\\apk\\\\debug\\\\app-debug.apk\" | Select-Object FullName, @{N='Size';E={\"{0:N2} MB\" -f \\($_.Length/1MB\\)}}, LastWriteTime)"
     ]
   }
 }
