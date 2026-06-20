@@ -138,9 +138,11 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
         ) {
             // ── Hero setup card ────────────────────────────────────────────────
             PrimarySetupCard(
-                state   = uiState.setupState,
-                onStart = { viewModel.startSetup() },
-                onRerun = { viewModel.startSetup() },
+                state        = uiState.setupState,
+                isDnsRunning = uiState.isDnsRunning,
+                onStart      = { viewModel.startSetup() },
+                onRerun      = { viewModel.startSetup() },
+                onStopAll    = { viewModel.onStopAll(context) },
             )
 
             // ── DNS stats card (visible when blocker is running) ───────────────

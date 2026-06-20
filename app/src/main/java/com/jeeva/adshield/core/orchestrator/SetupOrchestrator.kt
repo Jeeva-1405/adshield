@@ -274,9 +274,9 @@ class SetupOrchestrator(
             else                             -> null
         }
         SetupStep.SpotifyPatch -> when {
-            !isInstalled(TargetApps.SPOTIFY)  -> "Not installed"
-            isInstalled(TargetApps.XMANAGER)  -> "xManager installed"
-            else                              -> null
+            !isInstalled(TargetApps.SPOTIFY) -> "Not installed"
+            isInstalled(TargetApps.XMANAGER) -> "Already installed"
+            else                             -> null
         }
         else -> patchSkipReason(step.pkg)
     }

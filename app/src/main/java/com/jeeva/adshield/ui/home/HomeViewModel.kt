@@ -207,7 +207,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             val succeeded = stepStates.values.count { it == SetupStepState.Success }
             val alreadyOk = stepStates.values.count {
                 it is SetupStepState.Skipped &&
-                (it.reason == "Already active" || it.reason == "Already patched")
+                it.reason != "Not installed"
             }
             val failed = stepStates.filterValues { it is SetupStepState.Failed }
             val applicable = stepStates.values.count { it !is SetupStepState.Skipped ||
