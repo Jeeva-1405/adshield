@@ -1,0 +1,114 @@
+# AdShield default CDN whitelist
+# Entries here are never blocked regardless of the blocklist.
+# Format: one domain per line (bare domain, no wildcard prefix).
+# Both the exact domain and all subdomains are whitelisted.
+
+# === Video CDNs (adult sites) ===
+phncdn.com
+modelhub.com
+pornhub.com
+rdtcdn.com
+xvideos-cdn.com
+xnxx-cdn.com
+xhcdn.com
+xhamster.com
+hvcdn.com
+spankcdn.com
+ypncdn.com
+t66y.com
+tubecorp.com
+trafficdeposit.com
+bfrcdn.com
+brazzers.com
+realitykings.com
+pstatp.com
+mofos.com
+bangbros.com
+naughtycdn.com
+dpcdn.com
+livecdn.com
+stripchat.com
+chaturbate.com
+highwebmedia.com
+camsoda.com
+myfreecams.com
+mfcimg.com
+xstreamer.com
+bongacams.com
+cam4cdn.com
+eporner.com
+epimg.net
+hclips.com
+txxx.com
+hdzog.com
+zbporn.com
+drtuber.com
+tnaflix.com
+empflix.com
+porntrex.com
+fapcat.com
+youjizz.com
+yjcdn.com
+beeg.com
+spankbang.com
+sbcdn.com
+youporn.com
+
+# === General video/content CDNs ===
+akamaized.net
+akamaihd.net
+akamaitechnologies.com
+cloudfront.net
+cloudflare.com
+cdn.cloudflare.net
+fastly.net
+fastlylb.net
+edgecastcdn.net
+stackpathdns.com
+stackpathcdn.com
+cdn77.org
+hwcdn.net
+limelight.com
+llnwd.net
+cachefly.net
+incapdns.net
+bitgravity.com
+jsdelivr.net
+unpkg.com
+
+# === Google/YouTube ===
+googleapis.com
+googlevideo.com
+gstatic.com
+googleusercontent.com
+ytimg.com
+ggpht.com
+google.com
+gvt1.com
+
+# === Social/auth ===
+facebook.com
+fbcdn.net
+instagram.com
+cdninstagram.com
+twitter.com
+twimg.com
+
+# === Streaming platforms ===
+nflxvideo.net
+netflix.com
+hotstar.com
+jiocinema.com
+media.jio.com
+scdn.co
+spotify.com
+spotifycdn.com
+
+# === General infrastructure ===
+amazonaws.com
+azureedge.net
+azurefd.net
+windows.net
+microsoft.com
+apple.com
+icloud.com

@@ -9,6 +9,7 @@ import android.net.VpnService
 import android.os.ParcelFileDescriptor
 import androidx.core.app.NotificationCompat
 import com.jeeva.adshield.MainActivity
+import com.jeeva.adshield.data.prefs.AppPreferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -22,6 +23,7 @@ import java.io.FileOutputStream
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetAddress
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * VPN service that intercepts DNS queries and drops requests to known ad domains.
@@ -45,12 +47,22 @@ class DnsVpnService : VpnService() {
         @Volatile
         var isRunning = false
             private set
+
+        /** Cumulative DNS queries blocked since the service started. */
+        val blockedCount = AtomicLong(0)
+
+        /** Cumulative DNS queries allowed by the whitelist since the service started. */
+        val whitelistedCount = AtomicLong(0)
+
+        /** Resets both counters; call when the service starts. */
+        fun resetCounters() { blockedCount.set(0); whitelistedCount.set(0) }
     }
 
     private var tun: ParcelFileDescriptor? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val outQueue = Channel<ByteArray>(Channel.UNLIMITED)
     private var blocklist: Set<String> = emptySet()
+    private var whitelist: Set<String> = emptySet()
 
     override fun onCreate() {
         super.onCreate()
@@ -60,9 +72,12 @@ class DnsVpnService : VpnService() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) { stopSelf(); return START_NOT_STICKY }
         isRunning = true
+        resetCounters()
         startForeground(NOTIF_ID, buildNotification())
         scope.launch {
+            val prefs = AppPreferences(applicationContext)
             blocklist = BlocklistRepository.load(applicationContext)
+            whitelist = WhitelistRepository.load(applicationContext, prefs)
             establishTunnel()
         }
         return START_STICKY
@@ -107,16 +122,24 @@ class DnsVpnService : VpnService() {
         val dnsOff = ipLen + 8
         val domain = extractDomain(pkt, dnsOff) ?: return
 
-        if (isBlocked(domain)) {
-            outQueue.trySend(nxDomainReply(pkt, ipLen, dnsOff))
-        } else {
-            scope.launch { forwardUpstream(pkt, ipLen, dnsOff) }
+        when {
+            matchesSet(domain, whitelist) -> {
+                // Whitelist wins — always forward, never block
+                whitelistedCount.incrementAndGet()
+                scope.launch { forwardUpstream(pkt, ipLen, dnsOff) }
+            }
+            matchesSet(domain, blocklist) -> {
+                blockedCount.incrementAndGet()
+                outQueue.trySend(nxDomainReply(pkt, ipLen, dnsOff))
+            }
+            else -> scope.launch { forwardUpstream(pkt, ipLen, dnsOff) }
         }
     }
 
-    private fun isBlocked(domain: String): Boolean =
-        blocklist.contains(domain) ||
-        blocklist.any { b -> domain.length > b.length && domain.endsWith(".$b") }
+    /** Returns true if [domain] exactly matches or is a subdomain of any entry in [set]. */
+    private fun matchesSet(domain: String, set: Set<String>): Boolean =
+        set.contains(domain) ||
+        set.any { entry -> domain.length > entry.length && domain.endsWith(".$entry") }
 
     private fun extractDomain(pkt: ByteArray, dnsOff: Int): String? {
         if (dnsOff + 12 >= pkt.size) return null

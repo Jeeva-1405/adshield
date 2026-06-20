@@ -65,6 +65,12 @@ data class HomeUiState(
     val setupStepStates: Map<SetupStep, SetupStepState> = emptyMap(),
     val isSetupRunning: Boolean = false,
     val errorMessage: String? = null,
+    // DNS stats
+    val dnsBlockedCount: Long = 0L,
+    val dnsWhitelistedCount: Long = 0L,
+    // Whitelist management
+    val customWhitelist: Set<String> = emptySet(),
+    val showWhitelistDialog: Boolean = false,
 )
 
 // ── ViewModel ─────────────────────────────────────────────────────────────────
@@ -127,15 +133,19 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     // ── Public API: status refresh ────────────────────────────────────────────
 
-    /** Re-scans installed apps and overlays live engine state. */
+    /** Re-scans installed apps, overlays live engine state, and reads DNS counters. */
     fun refresh() {
         viewModelScope.launch(Dispatchers.IO) {
-            val patched  = prefs.getPatchedApps()
-            val statuses = detector.detectAll(DnsVpnService.isRunning, patched)
+            val patched   = prefs.getPatchedApps()
+            val statuses  = detector.detectAll(DnsVpnService.isRunning, patched)
+            val whitelist = prefs.getUserWhitelist()
             _uiState.update { it.copy(
-                appStatuses  = statuses,
-                isLoading    = false,
-                isDnsRunning = DnsVpnService.isRunning,
+                appStatuses        = statuses,
+                isLoading          = false,
+                isDnsRunning       = DnsVpnService.isRunning,
+                dnsBlockedCount    = DnsVpnService.blockedCount.get(),
+                dnsWhitelistedCount = DnsVpnService.whitelistedCount.get(),
+                customWhitelist    = whitelist,
             )}
         }
     }
@@ -252,6 +262,25 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun clearError() = _uiState.update { it.copy(errorMessage = null) }
+
+    // ── Public API: whitelist management ──────────────────────────────────────
+
+    fun openWhitelistDialog() = _uiState.update { it.copy(showWhitelistDialog = true) }
+    fun closeWhitelistDialog() = _uiState.update { it.copy(showWhitelistDialog = false) }
+
+    fun addToWhitelist(domain: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            prefs.addToWhitelist(domain)
+            refresh()
+        }
+    }
+
+    fun removeFromWhitelist(domain: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            prefs.removeFromWhitelist(domain)
+            refresh()
+        }
+    }
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
