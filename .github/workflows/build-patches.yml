@@ -5,10 +5,6 @@ on:
   schedule:
     - cron: '0 0 * * 0'   # Every Sunday midnight UTC
 
-# ─── Target APK versions ───────────────────────────────────────────────────────
-# TODO: Update these when `java -jar revanced-cli.jar list-patches --with-packages
-#       revanced-patches.rvp` shows a newer compatible version.
-# Check current support at: https://revanced.app/patches
 env:
   YOUTUBE_PKG:           com.google.android.youtube
   YOUTUBE_VERSION:       "19.47.53"
@@ -21,10 +17,10 @@ jobs:
   patch-and-release:
     runs-on: ubuntu-latest
     permissions:
-      contents: write   # needed to create GitHub Releases
+      contents: write
 
     steps:
-      # ── Setup ─────────────────────────────────────────────────────────────────
+      # ── Setup ──────────────────────────────────────────────────────────────────
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -34,211 +30,196 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Validate secrets
-        run: |
-          missing=""
-          [ -z "${{ secrets.KEYSTORE_BASE64 }}"  ] && missing="$missing KEYSTORE_BASE64"
-          [ -z "${{ secrets.KEYSTORE_PASSWORD }}" ] && missing="$missing KEYSTORE_PASSWORD"
-          [ -z "${{ secrets.KEY_ALIAS }}"         ] && missing="$missing KEY_ALIAS"
-          [ -z "${{ secrets.KEY_PASSWORD }}"      ] && missing="$missing KEY_PASSWORD"
-          if [ -n "$missing" ]; then
-            echo "::error::Missing GitHub secrets:$missing"
-            echo "See PATCHES.md → 'One-time setup' for instructions."
-            exit 1
-          fi
-
       - name: Set release tag
-        id: tag
         run: |
-          echo "TAG=v$(date +%Y.%m.%d)"     >> $GITHUB_OUTPUT
-          echo "DATE=$(date '+%Y-%m-%d')"   >> $GITHUB_OUTPUT
+          echo "TAG=v$(date +%Y.%m.%d)"   >> $GITHUB_ENV
+          echo "DATE=$(date '+%Y-%m-%d')" >> $GITHUB_ENV
 
       # ── Download ReVanced tools ────────────────────────────────────────────────
-      - name: Download ReVanced CLI and patches
-        id: tools
+      - name: Download ReVanced CLI
+        id: cli
         run: |
-          # -sS  : silent but print errors (SSL failures, network errors)
-          # -L   : follow redirects
-          # -o   : save body to file so we can print it on failure
-          # -w   : write HTTP status code to stdout (separated from body)
-          # No -f: we check the HTTP code ourselves so we can show the response body
+          CLI_JSON=$(curl -sS \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/ReVanced/revanced-cli/releases/latest")
 
-          api_get() {
-            local url=$1 outfile=$2
-            local http_code
-            http_code=$(curl -sSL \
-              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-              -H "Accept: application/vnd.github+json" \
-              -o "$outfile" \
-              -w "%{http_code}" \
-              "$url")
-            echo "HTTP $http_code  ←  $url"
-            if [ "$http_code" != "200" ]; then
-              echo "::error::GitHub API returned HTTP $http_code"
-              echo "--- response body ---"
-              cat "$outfile"
-              echo "--- end ---"
-              return 1
-            fi
-          }
-
-          api_get \
-            "https://api.github.com/repos/ReVanced/revanced-cli/releases/latest" \
-            cli_release.json
-
-          CLI_URL=$(jq -r '.assets[] | select(.name | endswith(".jar")) | .browser_download_url' \
-                    cli_release.json | head -1)
-          CLI_VER=$(jq -r '.tag_name' cli_release.json)
+          CLI_VER=$(echo "$CLI_JSON" | jq -r '.tag_name')
+          CLI_URL=$(echo "$CLI_JSON" \
+            | jq -r '.assets[] | select(.name | endswith(".jar")) | .browser_download_url' \
+            | head -1)
 
           if [ -z "$CLI_URL" ] || [ "$CLI_URL" = "null" ]; then
-            echo "::error::No .jar asset in revanced-cli release. Available assets:"
-            jq -r '.assets[].name' cli_release.json
+            echo "::error::No .jar asset in revanced-cli release. Available:"
+            echo "$CLI_JSON" | jq -r '.assets[].name'
             exit 1
           fi
 
-          # anddea/revanced-patches is the actively maintained community fork
-          # with pre-built .rvp binary releases on GitHub.
+          echo "CLI URL: $CLI_URL ($CLI_VER)"
+          curl -sS -L --fail-with-body "$CLI_URL" -o revanced-cli.jar
+          echo "CLI_VER=$CLI_VER" >> $GITHUB_OUTPUT
+
+      - name: Download ReVanced Patches
+        id: patches
+        run: |
           PATCHES_JSON=$(curl -sS \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
             "https://api.github.com/repos/anddea/revanced-patches/releases/latest")
+
           PATCHES_VER=$(echo "$PATCHES_JSON" | jq -r '.tag_name')
           PATCHES_URL=$(echo "$PATCHES_JSON" \
-            | jq -r '.assets[] | select(.name | endswith(".rvp")) | .browser_download_url' \
+            | jq -r '.assets[] | select(.name | endswith(".mpp")) | .browser_download_url' \
             | head -1)
 
           if [ -z "$PATCHES_URL" ] || [ "$PATCHES_URL" = "null" ]; then
-            echo "::error::No .rvp asset in anddea/revanced-patches release. Available assets:"
+            echo "::error::No .mpp asset in anddea/revanced-patches release. Available:"
             echo "$PATCHES_JSON" | jq -r '.assets[].name'
             exit 1
           fi
 
-          echo "CLI URL:     $CLI_URL  ($CLI_VER)"
-          echo "PATCHES URL: $PATCHES_URL  ($PATCHES_VER)"
-
-          curl -sSL --fail-with-body "$PATCHES_URL" -o revanced-patches.rvp
-
-          curl -sSL --fail-with-body "$CLI_URL" -o revanced-cli.jar
-
-          echo "CLI_VER=$CLI_VER"         >> $GITHUB_OUTPUT
+          echo "PATCHES URL: $PATCHES_URL ($PATCHES_VER)"
+          curl -sS -L --fail-with-body "$PATCHES_URL" -o patches.mpp
           echo "PATCHES_VER=$PATCHES_VER" >> $GITHUB_OUTPUT
-          echo "Downloads complete: CLI $CLI_VER, Patches $PATCHES_VER"
 
-      # ── Download APKs from APKPure ─────────────────────────────────────────────
+      # ── Install apkeep ─────────────────────────────────────────────────────────
       - name: Install apkeep
         run: |
-          HTTP=$(curl -sSL \
+          APKEEP_JSON=$(curl -sS \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
-            -o apkeep_release.json \
-            -w "%{http_code}" \
             "https://api.github.com/repos/EFForg/apkeep/releases/latest")
-          echo "apkeep API: HTTP $HTTP"
-          if [ "$HTTP" != "200" ]; then
-            echo "::error::GitHub API returned HTTP $HTTP for apkeep"
-            cat apkeep_release.json
-            exit 1
-          fi
 
-          APKEEP_URL=$(jq -r '.assets[] | select(.name | (contains("x86_64") and contains("linux"))) | .browser_download_url' \
-                       apkeep_release.json | head -1)
+          APKEEP_URL=$(echo "$APKEEP_JSON" \
+            | jq -r '.assets[] | select(.name | (contains("x86_64") and contains("linux"))) | .browser_download_url' \
+            | head -1)
+
           if [ -z "$APKEEP_URL" ] || [ "$APKEEP_URL" = "null" ]; then
-            echo "::error::No x86_64 Linux asset found for apkeep. Available assets:"
-            jq -r '.assets[].name' apkeep_release.json
+            echo "::error::No x86_64 Linux apkeep asset found. Available:"
+            echo "$APKEEP_JSON" | jq -r '.assets[].name'
             exit 1
           fi
 
-          curl -sSL --fail-with-body "$APKEEP_URL" -o apkeep
+          echo "apkeep URL: $APKEEP_URL"
+          curl -sS -L --fail-with-body "$APKEEP_URL" -o apkeep
           chmod +x apkeep
 
-      - name: Download APKs from APKPure
+      # ── Download APKs ──────────────────────────────────────────────────────────
+      - name: Download YouTube APK
+        id: dl_yt
+        continue-on-error: true
         run: |
-          # Downloads <pkg>@<version> from APKPure via apkeep.
-          # APKPure sometimes bundles apps as .xapk (ZIP of split APKs);
-          # we extract just the base APK in that case.
-          fetch_apk() {
-            local pkg=$1 version=$2 out=$3
+          echo "Downloading YouTube $YOUTUBE_VERSION"
+          ./apkeep -a "${YOUTUBE_PKG}@${YOUTUBE_VERSION}" -d APKPure . 2>&1 || true
 
-            echo "==> $pkg @ $version"
-            ./apkeep -a "${pkg}@${version}" -d APKPure . 2>&1 || true
+          if [ -f "${YOUTUBE_PKG}_${YOUTUBE_VERSION}.apk" ]; then
+            mv "${YOUTUBE_PKG}_${YOUTUBE_VERSION}.apk" youtube.apk
+          elif [ -f "${YOUTUBE_PKG}_${YOUTUBE_VERSION}.xapk" ]; then
+            unzip -p "${YOUTUBE_PKG}_${YOUTUBE_VERSION}.xapk" "${YOUTUBE_PKG}.apk" > youtube.apk
+          else
+            FOUND=$(find . -maxdepth 1 \
+              \( -name "${YOUTUBE_PKG}*.apk" -o -name "${YOUTUBE_PKG}*.xapk" \) \
+              ! -name "*revanced*" | head -1)
+            if [ -z "$FOUND" ]; then echo "ERROR: no APK downloaded for YouTube" && exit 1; fi
+            [[ "$FOUND" == *.xapk ]] \
+              && unzip -p "$FOUND" "${YOUTUBE_PKG}.apk" > youtube.apk \
+              || mv "$FOUND" youtube.apk
+          fi
+          echo "OK: $(du -sh youtube.apk)"
 
-            if [ -f "${pkg}_${version}.apk" ]; then
-              mv "${pkg}_${version}.apk" "$out"
-            elif [ -f "${pkg}_${version}.xapk" ]; then
-              echo "XAPK detected — extracting base APK"
-              unzip -p "${pkg}_${version}.xapk" "${pkg}.apk" > "$out"
-            else
-              # Fallback: find any apkeep output file (version string may differ)
-              local found
-              found=$(find . -maxdepth 1 \
-                \( -name "${pkg}*.apk" -o -name "${pkg}*.xapk" \) \
-                ! -name "*revanced*" | head -1)
-              if [ -z "$found" ]; then
-                echo "ERROR: no APK downloaded for $pkg" >&2
-                return 1
-              fi
-              [[ "$found" == *.xapk ]] \
-                && unzip -p "$found" "${pkg}.apk" > "$out" \
-                || mv "$found" "$out"
-            fi
-            echo "OK: $(du -sh "$out")"
-          }
+      - name: Download YouTube Music APK
+        id: dl_ytm
+        continue-on-error: true
+        run: |
+          echo "Downloading YouTube Music $YOUTUBE_MUSIC_VERSION"
+          ./apkeep -a "${YOUTUBE_MUSIC_PKG}@${YOUTUBE_MUSIC_VERSION}" -d APKPure . 2>&1 || true
 
-          fetch_apk "$YOUTUBE_PKG"       "$YOUTUBE_VERSION"       youtube-original.apk       || echo "YT_FAIL=1"  >> $GITHUB_ENV
-          fetch_apk "$YOUTUBE_MUSIC_PKG" "$YOUTUBE_MUSIC_VERSION" youtube-music-original.apk || echo "YTM_FAIL=1" >> $GITHUB_ENV
-          fetch_apk "$SPOTIFY_PKG"       "$SPOTIFY_VERSION"       spotify-original.apk        || echo "SPO_FAIL=1" >> $GITHUB_ENV
+          if [ -f "${YOUTUBE_MUSIC_PKG}_${YOUTUBE_MUSIC_VERSION}.apk" ]; then
+            mv "${YOUTUBE_MUSIC_PKG}_${YOUTUBE_MUSIC_VERSION}.apk" youtube-music.apk
+          elif [ -f "${YOUTUBE_MUSIC_PKG}_${YOUTUBE_MUSIC_VERSION}.xapk" ]; then
+            unzip -p "${YOUTUBE_MUSIC_PKG}_${YOUTUBE_MUSIC_VERSION}.xapk" "${YOUTUBE_MUSIC_PKG}.apk" > youtube-music.apk
+          else
+            FOUND=$(find . -maxdepth 1 \
+              \( -name "${YOUTUBE_MUSIC_PKG}*.apk" -o -name "${YOUTUBE_MUSIC_PKG}*.xapk" \) \
+              ! -name "*revanced*" | head -1)
+            if [ -z "$FOUND" ]; then echo "ERROR: no APK downloaded for YouTube Music" && exit 1; fi
+            [[ "$FOUND" == *.xapk ]] \
+              && unzip -p "$FOUND" "${YOUTUBE_MUSIC_PKG}.apk" > youtube-music.apk \
+              || mv "$FOUND" youtube-music.apk
+          fi
+          echo "OK: $(du -sh youtube-music.apk)"
 
-      # ── Signing keystore ──────────────────────────────────────────────────────
+      - name: Download Spotify APK
+        id: dl_spo
+        continue-on-error: true
+        run: |
+          echo "Downloading Spotify $SPOTIFY_VERSION"
+          ./apkeep -a "${SPOTIFY_PKG}@${SPOTIFY_VERSION}" -d APKPure . 2>&1 || true
+
+          if [ -f "${SPOTIFY_PKG}_${SPOTIFY_VERSION}.apk" ]; then
+            mv "${SPOTIFY_PKG}_${SPOTIFY_VERSION}.apk" spotify.apk
+          elif [ -f "${SPOTIFY_PKG}_${SPOTIFY_VERSION}.xapk" ]; then
+            unzip -p "${SPOTIFY_PKG}_${SPOTIFY_VERSION}.xapk" "${SPOTIFY_PKG}.apk" > spotify.apk
+          else
+            FOUND=$(find . -maxdepth 1 \
+              \( -name "${SPOTIFY_PKG}*.apk" -o -name "${SPOTIFY_PKG}*.xapk" \) \
+              ! -name "*revanced*" | head -1)
+            if [ -z "$FOUND" ]; then echo "ERROR: no APK downloaded for Spotify" && exit 1; fi
+            [[ "$FOUND" == *.xapk ]] \
+              && unzip -p "$FOUND" "${SPOTIFY_PKG}.apk" > spotify.apk \
+              || mv "$FOUND" spotify.apk
+          fi
+          echo "OK: $(du -sh spotify.apk)"
+
+      # ── Restore keystore ───────────────────────────────────────────────────────
       - name: Restore signing keystore
-        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.keystore
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
 
-      # ── Patch each app ────────────────────────────────────────────────────────
-      # Each step is independent; continue-on-error keeps the rest running even if
-      # one app's patch fails (e.g. because ReVanced dropped support for that version).
+      # ── Patch each app ─────────────────────────────────────────────────────────
       - name: Patch YouTube
-        if: env.YT_FAIL != '1'
+        if: steps.dl_yt.outcome == 'success'
         continue-on-error: true
         run: |
           java -jar revanced-cli.jar patch \
-            --patch-bundle            revanced-patches.rvp \
-            --keystore                release.keystore \
+            --patch-bundle patches.mpp \
+            --keystore keystore.jks \
             --keystore-entry-alias    "${{ secrets.KEY_ALIAS }}" \
             --keystore-entry-password "${{ secrets.KEY_PASSWORD }}" \
             --keystore-password       "${{ secrets.KEYSTORE_PASSWORD }}" \
             -o youtube-revanced.apk \
-            youtube-original.apk
+            youtube.apk
 
       - name: Patch YouTube Music
-        if: env.YTM_FAIL != '1'
+        if: steps.dl_ytm.outcome == 'success'
         continue-on-error: true
         run: |
           java -jar revanced-cli.jar patch \
-            --patch-bundle            revanced-patches.rvp \
-            --keystore                release.keystore \
+            --patch-bundle patches.mpp \
+            --keystore keystore.jks \
             --keystore-entry-alias    "${{ secrets.KEY_ALIAS }}" \
             --keystore-entry-password "${{ secrets.KEY_PASSWORD }}" \
             --keystore-password       "${{ secrets.KEYSTORE_PASSWORD }}" \
             -o youtube-music-revanced.apk \
-            youtube-music-original.apk
+            youtube-music.apk
 
       - name: Patch Spotify
-        if: env.SPO_FAIL != '1'
+        if: steps.dl_spo.outcome == 'success'
         continue-on-error: true
         run: |
           java -jar revanced-cli.jar patch \
-            --patch-bundle            revanced-patches.rvp \
-            --keystore                release.keystore \
+            --patch-bundle patches.mpp \
+            --keystore keystore.jks \
             --keystore-entry-alias    "${{ secrets.KEY_ALIAS }}" \
             --keystore-entry-password "${{ secrets.KEY_PASSWORD }}" \
             --keystore-password       "${{ secrets.KEYSTORE_PASSWORD }}" \
             -o spotify-revanced.apk \
-            spotify-original.apk
+            spotify.apk
 
-      # ── Build AdShield app ────────────────────────────────────────────────────
-      - name: Install Android SDK 36
+      # ── Build AdShield app ─────────────────────────────────────────────────────
+      - name: Install Android SDK components
         run: |
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
-            "platforms;android-36" "build-tools;36.1.0" 2>&1 | tail -5
+            "platforms;android-34" "build-tools;34.0.0" 2>&1 | tail -5
 
       - name: Build and sign AdShield APK
         id: adshield
@@ -249,15 +230,15 @@ jobs:
 
           UNSIGNED=$(find app/build/outputs/apk/release -name "*.apk" | head -1)
           if [ -z "$UNSIGNED" ]; then
-            echo "Gradle build produced no APK — skipping signing"
+            echo "Gradle build produced no APK — skipping"
             exit 0
           fi
 
           TOOLS=$(find "$ANDROID_HOME/build-tools" -maxdepth 1 -mindepth 1 -type d \
                   | sort -V | tail -1)
-          "$TOOLS/zipalign"  -v 4 "$UNSIGNED" adshield-aligned.apk
+          "$TOOLS/zipalign" -v 4 "$UNSIGNED" adshield-aligned.apk
           "$TOOLS/apksigner" sign \
-            --ks           release.keystore \
+            --ks           keystore.jks \
             --ks-pass      "pass:${{ secrets.KEYSTORE_PASSWORD }}" \
             --ks-key-alias "${{ secrets.KEY_ALIAS }}" \
             --key-pass     "pass:${{ secrets.KEY_PASSWORD }}" \
@@ -265,56 +246,42 @@ jobs:
             adshield-aligned.apk
           echo "AdShield signed: $(du -sh adshield-release.apk)"
 
-      # ── Publish release ───────────────────────────────────────────────────────
-      - name: Build release notes
-        id: notes
-        run: |
-          row() {
-            local file=$1 label=$2
-            [ -f "$file" ] \
-              && echo "| $label | ✅ Patched |" \
-              || echo "| $label | ❌ Failed — [see logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |"
-          }
-          {
-            echo "BODY<<DELIMEOF"
-            echo "## AdShield Patches — ${{ steps.tag.outputs.DATE }}"
-            echo ""
-            echo "### Assets"
-            echo "| App | Status |"
-            echo "|-----|--------|"
-            row youtube-revanced.apk       "YouTube ReVanced (v${YOUTUBE_VERSION})"
-            row youtube-music-revanced.apk "YouTube Music ReVanced (v${YOUTUBE_MUSIC_VERSION})"
-            row spotify-revanced.apk       "Spotify ReVanced (v${SPOTIFY_VERSION})"
-            row adshield-release.apk       "AdShield app"
-            echo ""
-            echo "### Tool versions"
-            echo "- ReVanced CLI: \`${{ steps.tools.outputs.CLI_VER }}\`"
-            echo "- ReVanced Patches: \`${{ steps.tools.outputs.PATCHES_VER }}\`"
-            echo ""
-            echo "*Auto-built by [GitHub Actions](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})*"
-            echo "DELIMEOF"
-          } >> $GITHUB_OUTPUT
-
+      # ── Publish release ────────────────────────────────────────────────────────
       - name: Publish GitHub Release
+        if: always()
         uses: softprops/action-gh-release@v2
         with:
-          tag_name:                ${{ steps.tag.outputs.TAG }}
-          name:                    "AdShield Patches — ${{ steps.tag.outputs.DATE }}"
-          body:                    ${{ steps.notes.outputs.BODY }}
+          tag_name:                ${{ env.TAG }}
+          name:                    "AdShield Patches — ${{ env.DATE }}"
           make_latest:             "true"
           fail_on_unmatched_files: false
+          body: |
+            ## AdShield Patches — ${{ env.DATE }}
+
+            ### Tool versions
+            - ReVanced CLI: `${{ steps.cli.outputs.CLI_VER }}`
+            - ReVanced Patches (anddea): `${{ steps.patches.outputs.PATCHES_VER }}`
+
+            ### Target versions
+            | App | Version |
+            |-----|---------|
+            | YouTube | ${{ env.YOUTUBE_VERSION }} |
+            | YouTube Music | ${{ env.YOUTUBE_MUSIC_VERSION }} |
+            | Spotify | ${{ env.SPOTIFY_VERSION }} |
+
+            *Auto-built by [GitHub Actions](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})*
           files: |
             youtube-revanced.apk
             youtube-music-revanced.apk
             spotify-revanced.apk
             adshield-release.apk
 
-      # ── Job summary ───────────────────────────────────────────────────────────
+      # ── Job summary ────────────────────────────────────────────────────────────
       - name: Write job summary
         if: always()
         run: |
           {
-            echo "## ${{ steps.tag.outputs.DATE }} patch results"
+            echo "## ${{ env.DATE }} patch results"
             echo "| App | Result |"
             echo "|-----|--------|"
             [ -f youtube-revanced.apk ]       && echo "| YouTube       | ✅ |" || echo "| YouTube       | ❌ |"
