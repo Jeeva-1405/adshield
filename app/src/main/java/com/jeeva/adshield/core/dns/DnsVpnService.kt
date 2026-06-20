@@ -260,15 +260,14 @@ class DnsVpnService : VpnService() {
     private suspend fun forwardUpstream(pkt: ByteArray, ipLen: Int, dnsOff: Int) {
         val srcPort = pkt.u16(ipLen)
         val dns = pkt.copyOfRange(dnsOff, pkt.size)
+        val sock = DatagramSocket()
         try {
-            val sock = DatagramSocket()
             protect(sock)
             sock.soTimeout = 4000
             sock.send(DatagramPacket(dns, dns.size, InetAddress.getByName(UPSTREAM), 53))
             val resp = ByteArray(4096)
             val dp = DatagramPacket(resp, resp.size)
             sock.receive(dp)
-            sock.close()
             val reply = ipUdpPacket(
                 srcIp  = pkt.copyOfRange(16, 20),
                 dstIp  = pkt.copyOfRange(12, 16),
@@ -277,7 +276,11 @@ class DnsVpnService : VpnService() {
                 payload = resp.copyOf(dp.length),
             )
             withContext(Dispatchers.IO) { outQueue.send(reply) }
-        } catch (_: Exception) { /* drop on error or timeout */ }
+        } catch (_: Exception) {
+            /* drop on error or timeout */
+        } finally {
+            sock.close()
+        }
     }
 
     private fun ipUdpPacket(

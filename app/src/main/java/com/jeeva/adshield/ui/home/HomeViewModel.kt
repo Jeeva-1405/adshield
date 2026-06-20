@@ -351,11 +351,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         return vpnDeferred!!.await()
     }
 
-    /** Sends ACTION_STOP to the service so it returns START_NOT_STICKY and stays stopped. */
+    /** Stops the DNS service. stopService() works from any context and has no background restriction. */
     private fun stopDnsService(context: Context) {
-        context.startService(Intent(context, DnsVpnService::class.java).apply {
-            action = DnsVpnService.ACTION_STOP
-        })
+        context.stopService(Intent(context, DnsVpnService::class.java))
     }
 
     private fun startDns(context: Context) {
