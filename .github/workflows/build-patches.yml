@@ -10,8 +10,6 @@ env:
   YOUTUBE_VERSION:       "19.47.53"
   YOUTUBE_MUSIC_PKG:     com.google.android.apps.youtube.music
   YOUTUBE_MUSIC_VERSION: "7.25.52"
-  SPOTIFY_PKG:           com.spotify.music
-  SPOTIFY_VERSION:       "8.6.96.1103"
 
 jobs:
   patch-and-release:
@@ -35,14 +33,15 @@ jobs:
           echo "TAG=v$(date +%Y.%m.%d)"   >> $GITHUB_ENV
           echo "DATE=$(date '+%Y-%m-%d')" >> $GITHUB_ENV
 
-      # ── Download ReVanced tools ────────────────────────────────────────────────
-      - name: Download ReVanced CLI
+      # ── Download tools ─────────────────────────────────────────────────────────
+      # morphe-cli is required for .mpp patch bundles (anddea uses MorpheApp's patcher)
+      - name: Download morphe-cli
         id: cli
         run: |
           CLI_JSON=$(curl -sS \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/ReVanced/revanced-cli/releases/latest")
+            "https://api.github.com/repos/MorpheApp/morphe-cli/releases/latest")
 
           CLI_VER=$(echo "$CLI_JSON" | jq -r '.tag_name')
           CLI_URL=$(echo "$CLI_JSON" \
@@ -50,13 +49,13 @@ jobs:
             | head -1)
 
           if [ -z "$CLI_URL" ] || [ "$CLI_URL" = "null" ]; then
-            echo "::error::No .jar asset in revanced-cli release. Available:"
+            echo "::error::No .jar asset in morphe-cli release. Available:"
             echo "$CLI_JSON" | jq -r '.assets[].name'
             exit 1
           fi
 
           echo "CLI URL: $CLI_URL ($CLI_VER)"
-          curl -sS -L --fail-with-body "$CLI_URL" -o revanced-cli.jar
+          curl -sS -L --fail-with-body "$CLI_URL" -o morphe-cli.jar
           echo "CLI_VER=$CLI_VER" >> $GITHUB_OUTPUT
 
       - name: Download ReVanced Patches
@@ -109,20 +108,29 @@ jobs:
         id: dl_yt
         continue-on-error: true
         run: |
+          # XAPKs use either base.apk or <pkg>.apk as the main entry
+          extract_xapk() {
+            local inner
+            inner=$(unzip -l "$1" | awk '{print $4}' \
+              | grep -E "^(base\.apk|${2}\.apk)$" | head -1)
+            [ -z "$inner" ] && echo "::error::No base APK in $1" && return 1
+            unzip -p "$1" "$inner" > "$3"
+          }
+
           echo "Downloading YouTube $YOUTUBE_VERSION"
-          ./apkeep -a "${YOUTUBE_PKG}@${YOUTUBE_VERSION}" -d APKPure . 2>&1 || true
+          ./apkeep -a "${YOUTUBE_PKG}@${YOUTUBE_VERSION}" -d apk-pure . 2>&1 || true
 
           if [ -f "${YOUTUBE_PKG}_${YOUTUBE_VERSION}.apk" ]; then
             mv "${YOUTUBE_PKG}_${YOUTUBE_VERSION}.apk" youtube.apk
           elif [ -f "${YOUTUBE_PKG}_${YOUTUBE_VERSION}.xapk" ]; then
-            unzip -p "${YOUTUBE_PKG}_${YOUTUBE_VERSION}.xapk" "${YOUTUBE_PKG}.apk" > youtube.apk
+            extract_xapk "${YOUTUBE_PKG}_${YOUTUBE_VERSION}.xapk" "$YOUTUBE_PKG" youtube.apk
           else
             FOUND=$(find . -maxdepth 1 \
               \( -name "${YOUTUBE_PKG}*.apk" -o -name "${YOUTUBE_PKG}*.xapk" \) \
               ! -name "*revanced*" | head -1)
             if [ -z "$FOUND" ]; then echo "ERROR: no APK downloaded for YouTube" && exit 1; fi
             [[ "$FOUND" == *.xapk ]] \
-              && unzip -p "$FOUND" "${YOUTUBE_PKG}.apk" > youtube.apk \
+              && extract_xapk "$FOUND" "$YOUTUBE_PKG" youtube.apk \
               || mv "$FOUND" youtube.apk
           fi
           echo "OK: $(du -sh youtube.apk)"
@@ -131,58 +139,48 @@ jobs:
         id: dl_ytm
         continue-on-error: true
         run: |
+          extract_xapk() {
+            local inner
+            inner=$(unzip -l "$1" | awk '{print $4}' \
+              | grep -E "^(base\.apk|${2}\.apk)$" | head -1)
+            [ -z "$inner" ] && echo "::error::No base APK in $1" && return 1
+            unzip -p "$1" "$inner" > "$3"
+          }
+
           echo "Downloading YouTube Music $YOUTUBE_MUSIC_VERSION"
-          ./apkeep -a "${YOUTUBE_MUSIC_PKG}@${YOUTUBE_MUSIC_VERSION}" -d APKPure . 2>&1 || true
+          ./apkeep -a "${YOUTUBE_MUSIC_PKG}@${YOUTUBE_MUSIC_VERSION}" -d apk-pure . 2>&1 || true
 
           if [ -f "${YOUTUBE_MUSIC_PKG}_${YOUTUBE_MUSIC_VERSION}.apk" ]; then
             mv "${YOUTUBE_MUSIC_PKG}_${YOUTUBE_MUSIC_VERSION}.apk" youtube-music.apk
           elif [ -f "${YOUTUBE_MUSIC_PKG}_${YOUTUBE_MUSIC_VERSION}.xapk" ]; then
-            unzip -p "${YOUTUBE_MUSIC_PKG}_${YOUTUBE_MUSIC_VERSION}.xapk" "${YOUTUBE_MUSIC_PKG}.apk" > youtube-music.apk
+            extract_xapk "${YOUTUBE_MUSIC_PKG}_${YOUTUBE_MUSIC_VERSION}.xapk" "$YOUTUBE_MUSIC_PKG" youtube-music.apk
           else
             FOUND=$(find . -maxdepth 1 \
               \( -name "${YOUTUBE_MUSIC_PKG}*.apk" -o -name "${YOUTUBE_MUSIC_PKG}*.xapk" \) \
               ! -name "*revanced*" | head -1)
             if [ -z "$FOUND" ]; then echo "ERROR: no APK downloaded for YouTube Music" && exit 1; fi
             [[ "$FOUND" == *.xapk ]] \
-              && unzip -p "$FOUND" "${YOUTUBE_MUSIC_PKG}.apk" > youtube-music.apk \
+              && extract_xapk "$FOUND" "$YOUTUBE_MUSIC_PKG" youtube-music.apk \
               || mv "$FOUND" youtube-music.apk
           fi
           echo "OK: $(du -sh youtube-music.apk)"
-
-      - name: Download Spotify APK
-        id: dl_spo
-        continue-on-error: true
-        run: |
-          echo "Downloading Spotify $SPOTIFY_VERSION"
-          ./apkeep -a "${SPOTIFY_PKG}@${SPOTIFY_VERSION}" -d APKPure . 2>&1 || true
-
-          if [ -f "${SPOTIFY_PKG}_${SPOTIFY_VERSION}.apk" ]; then
-            mv "${SPOTIFY_PKG}_${SPOTIFY_VERSION}.apk" spotify.apk
-          elif [ -f "${SPOTIFY_PKG}_${SPOTIFY_VERSION}.xapk" ]; then
-            unzip -p "${SPOTIFY_PKG}_${SPOTIFY_VERSION}.xapk" "${SPOTIFY_PKG}.apk" > spotify.apk
-          else
-            FOUND=$(find . -maxdepth 1 \
-              \( -name "${SPOTIFY_PKG}*.apk" -o -name "${SPOTIFY_PKG}*.xapk" \) \
-              ! -name "*revanced*" | head -1)
-            if [ -z "$FOUND" ]; then echo "ERROR: no APK downloaded for Spotify" && exit 1; fi
-            [[ "$FOUND" == *.xapk ]] \
-              && unzip -p "$FOUND" "${SPOTIFY_PKG}.apk" > spotify.apk \
-              || mv "$FOUND" spotify.apk
-          fi
-          echo "OK: $(du -sh spotify.apk)"
 
       # ── Restore keystore ───────────────────────────────────────────────────────
       - name: Restore signing keystore
         run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
 
       # ── Patch each app ─────────────────────────────────────────────────────────
+      # SponsorBlock disabled: its layout references quantum_ic_skip_next_white_24
+      # which was removed in YouTube 19.47.53, causing resource compilation to fail.
       - name: Patch YouTube
         if: steps.dl_yt.outcome == 'success'
         continue-on-error: true
         run: |
-          java -jar revanced-cli.jar patch \
-            --patch-bundle patches.mpp \
-            --keystore keystore.jks \
+          java -jar morphe-cli.jar patch \
+            -p patches.mpp \
+            -d "SponsorBlock" \
+            --continue-on-error \
+            --keystore                keystore.jks \
             --keystore-entry-alias    "${{ secrets.KEY_ALIAS }}" \
             --keystore-entry-password "${{ secrets.KEY_PASSWORD }}" \
             --keystore-password       "${{ secrets.KEYSTORE_PASSWORD }}" \
@@ -193,27 +191,15 @@ jobs:
         if: steps.dl_ytm.outcome == 'success'
         continue-on-error: true
         run: |
-          java -jar revanced-cli.jar patch \
-            --patch-bundle patches.mpp \
-            --keystore keystore.jks \
+          java -jar morphe-cli.jar patch \
+            -p patches.mpp \
+            --continue-on-error \
+            --keystore                keystore.jks \
             --keystore-entry-alias    "${{ secrets.KEY_ALIAS }}" \
             --keystore-entry-password "${{ secrets.KEY_PASSWORD }}" \
             --keystore-password       "${{ secrets.KEYSTORE_PASSWORD }}" \
             -o youtube-music-revanced.apk \
             youtube-music.apk
-
-      - name: Patch Spotify
-        if: steps.dl_spo.outcome == 'success'
-        continue-on-error: true
-        run: |
-          java -jar revanced-cli.jar patch \
-            --patch-bundle patches.mpp \
-            --keystore keystore.jks \
-            --keystore-entry-alias    "${{ secrets.KEY_ALIAS }}" \
-            --keystore-entry-password "${{ secrets.KEY_PASSWORD }}" \
-            --keystore-password       "${{ secrets.KEYSTORE_PASSWORD }}" \
-            -o spotify-revanced.apk \
-            spotify.apk
 
       # ── Build AdShield app ─────────────────────────────────────────────────────
       - name: Install Android SDK components
@@ -259,21 +245,19 @@ jobs:
             ## AdShield Patches — ${{ env.DATE }}
 
             ### Tool versions
-            - ReVanced CLI: `${{ steps.cli.outputs.CLI_VER }}`
-            - ReVanced Patches (anddea): `${{ steps.patches.outputs.PATCHES_VER }}`
+            - morphe-cli: `${{ steps.cli.outputs.CLI_VER }}`
+            - ReVanced Extended Patches (anddea): `${{ steps.patches.outputs.PATCHES_VER }}`
 
             ### Target versions
             | App | Version |
             |-----|---------|
             | YouTube | ${{ env.YOUTUBE_VERSION }} |
             | YouTube Music | ${{ env.YOUTUBE_MUSIC_VERSION }} |
-            | Spotify | ${{ env.SPOTIFY_VERSION }} |
 
             *Auto-built by [GitHub Actions](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})*
           files: |
             youtube-revanced.apk
             youtube-music-revanced.apk
-            spotify-revanced.apk
             adshield-release.apk
 
       # ── Job summary ────────────────────────────────────────────────────────────
@@ -286,6 +270,5 @@ jobs:
             echo "|-----|--------|"
             [ -f youtube-revanced.apk ]       && echo "| YouTube       | ✅ |" || echo "| YouTube       | ❌ |"
             [ -f youtube-music-revanced.apk ] && echo "| YouTube Music | ✅ |" || echo "| YouTube Music | ❌ |"
-            [ -f spotify-revanced.apk ]       && echo "| Spotify       | ✅ |" || echo "| Spotify       | ❌ |"
             [ -f adshield-release.apk ]       && echo "| AdShield      | ✅ |" || echo "| AdShield      | ❌ |"
           } >> $GITHUB_STEP_SUMMARY
