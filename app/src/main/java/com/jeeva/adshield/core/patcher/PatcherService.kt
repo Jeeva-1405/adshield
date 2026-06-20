@@ -99,11 +99,30 @@ class PatcherService : Service() {
 
     private suspend fun runXManagerInstall() {
         val filename = "xManager.apk"
-        val url = "https://github.com/Team-xManager/xManager/releases/latest/download/xManager.apk"
+        emit("Fetching latest xManager release…", 5)
+        val url = resolveXManagerUrl()
+            ?: throw IOException("Could not resolve xManager download URL")
         emit("Downloading xManager…", 15)
         val apk = download(url, filename) { p -> emit("Downloading… $p%", 15 + p * 70 / 100) }
         emit("Launching installer…", 90)
         withContext(Dispatchers.Main) { ApkInstaller.install(applicationContext, apk) }
+    }
+
+    private fun resolveXManagerUrl(): String? {
+        val body = http.newCall(
+            Request.Builder()
+                .url("https://api.github.com/repos/Team-xManager/xManager/releases/latest")
+                .header("Accept", "application/vnd.github+json")
+                .build()
+        ).execute().use { it.body?.string() } ?: return null
+        val assets = JSONObject(body).optJSONArray("assets") ?: return null
+        for (i in 0 until assets.length()) {
+            val a = assets.getJSONObject(i)
+            if (a.optString("name").endsWith(".apk")) {
+                return a.optString("browser_download_url").takeIf { it.isNotEmpty() }
+            }
+        }
+        return null
     }
 
     private fun assetFor(pkg: String): String = when (pkg) {

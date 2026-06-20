@@ -109,6 +109,17 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
         topBar = {
             TopAppBar(
                 title = { Text("AdShield", fontWeight = FontWeight.Bold) },
+                actions = {
+                    if (uiState.isDnsRunning || uiState.isSetupRunning) {
+                        IconButton(onClick = { viewModel.onStopAll(context) }) {
+                            Icon(
+                                Icons.Rounded.Close,
+                                contentDescription = "Stop all blocking",
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                            )
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary,
@@ -176,7 +187,7 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
                         else                 -> null
                     }
 
-                    val cardSubtitle = if (isSpotify) "Uses xManager for Spotify ad blocking" else null
+                    val cardSubtitle = if (isSpotify) "Via xManager" else null
 
                     // Buttons are disabled while the orchestrator owns the flow
                     val actionEnabled = !uiState.isSetupRunning && !isManualPatching

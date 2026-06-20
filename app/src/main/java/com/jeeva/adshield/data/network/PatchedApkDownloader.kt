@@ -5,8 +5,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.json.JSONObject
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.TimeUnit
@@ -78,6 +80,27 @@ class PatchedApkDownloader(private val context: Context) {
             }
         }
     }.flowOn(Dispatchers.IO)
+
+    /**
+     * Resolves the latest xManager APK download URL via the GitHub releases API.
+     * Returns null if the API call fails or no APK asset is found.
+     */
+    suspend fun resolveXManagerUrl(): String? = withContext(Dispatchers.IO) {
+        val body = http.newCall(
+            Request.Builder()
+                .url("https://api.github.com/repos/Team-xManager/xManager/releases/latest")
+                .header("Accept", "application/vnd.github+json")
+                .build()
+        ).execute().use { it.body?.string() } ?: return@withContext null
+        val assets = JSONObject(body).optJSONArray("assets") ?: return@withContext null
+        for (i in 0 until assets.length()) {
+            val a = assets.getJSONObject(i)
+            if (a.optString("name").endsWith(".apk")) {
+                return@withContext a.optString("browser_download_url").takeIf { it.isNotEmpty() }
+            }
+        }
+        null
+    }
 
     /** Returns the local cache file for a given asset filename (may not exist yet). */
     fun getFile(filename: String): File =

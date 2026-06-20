@@ -264,9 +264,34 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Launches xManager so the user can select and install a modded Spotify version. */
     fun onOpenXManager(context: Context) {
-        val intent = context.packageManager.getLaunchIntentForPackage(TargetApps.XMANAGER)
-        if (intent != null) context.startActivity(intent)
-        else _uiState.update { it.copy(errorMessage = "xManager is not installed") }
+        try {
+            context.startActivity(
+                Intent(Intent.ACTION_MAIN).setPackage(TargetApps.XMANAGER)
+            )
+        } catch (_: Exception) {
+            _uiState.update { it.copy(errorMessage = "xManager is not installed") }
+        }
+    }
+
+    /** Stops DNS blocker and cancels any in-progress setup or patching. */
+    fun onStopAll(context: Context) {
+        setupJob?.cancel()
+        setupJob = null
+        vpnDeferred?.cancel()
+        vpnDeferred = null
+        if (DnsVpnService.isRunning) {
+            context.startService(Intent(context, DnsVpnService::class.java).apply {
+                action = DnsVpnService.ACTION_STOP
+            })
+        }
+        _uiState.update { it.copy(
+            isSetupRunning  = false,
+            setupState      = SetupUiState.Idle,
+            setupStepStates = emptyMap(),
+            patchingPkg     = null,
+            patchStep       = null,
+        )}
+        viewModelScope.launch { delay(400); refresh() }
     }
 
     /** Called when user taps "Patch" on a YouTube / YT Music / Spotify card. */

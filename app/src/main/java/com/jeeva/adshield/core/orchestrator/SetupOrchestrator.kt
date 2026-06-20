@@ -201,7 +201,10 @@ class SetupOrchestrator(
     ): SetupStepState {
         val range = endPercent - basePercent
         val filename = "xManager.apk"
-        val url = "https://github.com/Team-xManager/xManager/releases/latest/download/xManager.apk"
+
+        emit(SetupProgress(step, SetupStepState.Running, basePercent, "Fetching latest xManager release…"))
+        val url = downloader.resolveXManagerUrl()
+            ?: return SetupStepState.Failed("Could not fetch xManager download URL")
 
         downloader.downloadFrom(url, filename).collect { dp ->
             val p = basePercent + dp.percent * range * 70 / 10000
