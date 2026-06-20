@@ -1,26 +1,69 @@
-# AdShield Minimal Ad Blocklist
-# Only pure ad-serving domains — nothing that could break content or video playback
+# AdShield Ad Blocklist
 # Subdomain matching is automatic: blocking foo.com also blocks bar.foo.com
 
-# ── GOOGLE ADS ────────────────────────────────────────────────────────────────
-# Root domains catch all subdomains (pagead2, googleads, securepubads, etc.)
+# ── GOOGLE ADS & VIDEO AD SDK ─────────────────────────────────────────────────
 doubleclick.net
 googlesyndication.com
 googleadservices.com
 adservice.google.com
 ads.google.com
+googletagservices.com
+imasdk.googleapis.com
+dai.google.com
 
 # ── POPUP / REDIRECT / INTERSTITIAL NETWORKS ──────────────────────────────────
-# These serve ONLY popups, popunders, and forced-redirect ads — zero legitimate content
 popads.net
 popcash.net
 propellerads.com
 clickadu.com
 admaven.com
 hilltopads.net
+trafficfactory.biz
+zeroredirect1.com
+zeroredirect2.com
+
+# ── PROGRAMMATIC AD EXCHANGES ─────────────────────────────────────────────────
+rubiconproject.com
+pubmatic.com
+openx.net
+openx.com
+appnexus.com
+adnxs.com
+casalemedia.com
+indexexchange.com
+smartadserver.com
+33across.com
+sovrn.com
+lijit.com
+yieldmo.com
+triplelift.com
+sharethrough.com
+unrulymedia.com
+teads.tv
+teads.com
+
+# ── DEMAND-SIDE PLATFORMS ─────────────────────────────────────────────────────
+adsrvr.org
+advertising.com
+media.net
+criteo.com
+criteo.net
+amazon-adsystem.com
+ads.amazon.com
+
+# ── CONTENT RECOMMENDATION ADS ───────────────────────────────────────────────
+outbrain.com
+taboola.com
+revcontent.com
+content.ad
+mgid.com
+zergnet.com
+
+# ── SOCIAL MEDIA ADS ─────────────────────────────────────────────────────────
+connect.facebook.net
+an.facebook.com
 
 # ── ADULT AD NETWORKS ─────────────────────────────────────────────────────────
-# Ad banners/popups only — NOT the video CDNs that serve actual adult content
 exoclick.com
 trafficjunky.net
 juicyads.com
@@ -29,7 +72,6 @@ tsyndicate.com
 plugrush.com
 
 # ── MOBILE AD SDKS ───────────────────────────────────────────────────────────
-# Only the ad-serving endpoints; unity3d.com root is excluded (serves game content)
 admob.com
 unityads.unity3d.com
 applovin.com
@@ -37,3 +79,18 @@ ironsource.com
 vungle.com
 chartboost.com
 inmobi.com
+mopub.com
+moatads.com
+smaato.net
+adcolony.com
+
+# ── TRACKING & DATA BROKERS ───────────────────────────────────────────────────
+scorecardresearch.com
+quantserve.com
+demdex.net
+bluekai.com
+bidswitch.net
+rlcdn.com
+agkn.com
+adform.net
+adform.com

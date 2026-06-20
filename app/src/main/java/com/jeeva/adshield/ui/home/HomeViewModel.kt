@@ -66,15 +66,9 @@ data class HomeUiState(
     val setupStepStates: Map<SetupStep, SetupStepState> = emptyMap(),
     val isSetupRunning: Boolean = false,
     val errorMessage: String? = null,
-    // DNS stats
-    val dnsBlockedCount: Long = 0L,
-    val dnsWhitelistedCount: Long = 0L,
-    // Whitelist management
-    val customWhitelist: Set<String> = emptySet(),
-    val showWhitelistDialog: Boolean = false,
     // xManager state for Spotify card
     val xManagerInstalled: Boolean = false,
-    // Live feed of recently blocked domains for debugging
+    // Live feed of recently blocked domains
     val recentlyBlocked: List<String> = emptyList(),
     // True once setup was completed; "Block All Ads" then becomes a DNS-only quick toggle
     val setupEverCompleted: Boolean = false,
@@ -151,25 +145,21 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     // ── Public API: status refresh ────────────────────────────────────────────
 
-    /** Re-scans installed apps, overlays live engine state, and reads DNS counters. */
+    /** Re-scans installed apps and overlays live engine state. */
     fun refresh() {
         viewModelScope.launch(Dispatchers.IO) {
             val patched   = prefs.getPatchedApps()
             val statuses  = detector.detectAll(DnsVpnService.isRunning, patched)
-            val whitelist = prefs.getUserWhitelist()
             val xManagerInstalled = try {
                 getApplication<Application>().packageManager
                     .getPackageInfo(TargetApps.XMANAGER, 0)
                 true
             } catch (_: PackageManager.NameNotFoundException) { false }
             _uiState.update { it.copy(
-                appStatuses         = statuses,
-                isLoading           = false,
-                isDnsRunning        = DnsVpnService.isRunning,
-                dnsBlockedCount     = DnsVpnService.blockedCount.get(),
-                dnsWhitelistedCount = DnsVpnService.whitelistedCount.get(),
-                customWhitelist     = whitelist,
-                xManagerInstalled   = xManagerInstalled,
+                appStatuses       = statuses,
+                isLoading         = false,
+                isDnsRunning      = DnsVpnService.isRunning,
+                xManagerInstalled = xManagerInstalled,
             )}
         }
     }
@@ -292,9 +282,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Called when user taps "Disable DNS". */
     fun onDisableDns(context: Context) {
-        context.startService(Intent(context, DnsVpnService::class.java).apply {
-            action = DnsVpnService.ACTION_STOP
-        })
+        stopDnsService(context)
         viewModelScope.launch { delay(400); refresh() }
     }
 
@@ -326,7 +314,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             patchingPkg     = null,
             patchStep       = null,
         )}
-        context.stopService(Intent(context, DnsVpnService::class.java))
+        stopDnsService(context)
         viewModelScope.launch { delay(600); refresh() }
     }
 
@@ -340,30 +328,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun clearError() = _uiState.update { it.copy(errorMessage = null) }
 
-    // ── Public API: whitelist management ──────────────────────────────────────
-
-    fun openWhitelistDialog() = _uiState.update { it.copy(showWhitelistDialog = true) }
-    fun closeWhitelistDialog() = _uiState.update { it.copy(showWhitelistDialog = false) }
+    // ── Public API: whitelist (Allow button on recently-blocked domains) ───────
 
     /** Whitelists a blocked domain and removes it from the recently-blocked list immediately. */
     fun onAllowBlocked(domain: String) {
         viewModelScope.launch(Dispatchers.IO) {
             prefs.addToWhitelist(domain)
             DnsVpnService.removeRecentlyBlocked(domain)
-        }
-    }
-
-    fun addToWhitelist(domain: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            prefs.addToWhitelist(domain)
-            refresh()
-        }
-    }
-
-    fun removeFromWhitelist(domain: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            prefs.removeFromWhitelist(domain)
-            refresh()
         }
     }
 
@@ -378,6 +349,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         vpnDeferred = CompletableDeferred()
         _uiState.update { it.copy(vpnPermissionIntent = intent) }
         return vpnDeferred!!.await()
+    }
+
+    /** Sends ACTION_STOP to the service so it returns START_NOT_STICKY and stays stopped. */
+    private fun stopDnsService(context: Context) {
+        context.startService(Intent(context, DnsVpnService::class.java).apply {
+            action = DnsVpnService.ACTION_STOP
+        })
     }
 
     private fun startDns(context: Context) {

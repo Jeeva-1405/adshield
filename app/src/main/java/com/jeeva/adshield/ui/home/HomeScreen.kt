@@ -16,14 +16,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Headset
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.PlayCircle
-import androidx.compose.material.icons.rounded.Shield
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
@@ -34,7 +31,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -46,10 +42,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -145,20 +138,12 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
                 onStopAll    = { viewModel.onStopAll(context) },
             )
 
-            // ── DNS stats card (visible when blocker is running) ───────────────
-            if (uiState.isDnsRunning) {
-                DnsStatsCard(
-                    blockedCount     = uiState.dnsBlockedCount,
-                    whitelistedCount = uiState.dnsWhitelistedCount,
-                    customEntries    = uiState.customWhitelist.size,
-                    onManageWhitelist = { viewModel.openWhitelistDialog() },
+            // ── Recently blocked list (visible when blocker is running) ─────────
+            if (uiState.isDnsRunning && uiState.recentlyBlocked.isNotEmpty()) {
+                RecentlyBlockedCard(
+                    domains = uiState.recentlyBlocked,
+                    onAllow = { viewModel.onAllowBlocked(it) },
                 )
-                if (uiState.recentlyBlocked.isNotEmpty()) {
-                    RecentlyBlockedCard(
-                        domains = uiState.recentlyBlocked,
-                        onAllow = { viewModel.onAllowBlocked(it) },
-                    )
-                }
             }
 
             if (uiState.isLoading) {
@@ -224,14 +209,6 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
         }
     }
 
-    if (uiState.showWhitelistDialog) {
-        WhitelistDialog(
-            customEntries = uiState.customWhitelist,
-            onAdd         = { viewModel.addToWhitelist(it) },
-            onRemove      = { viewModel.removeFromWhitelist(it) },
-            onDismiss     = { viewModel.closeWhitelistDialog() },
-        )
-    }
 }
 
 /** Card showing install/block status and action button for a single target app. */
@@ -356,139 +333,3 @@ private fun RecentlyBlockedCard(
     }
 }
 
-/** Live DNS stats: blocked count, whitelisted count, and a button to manage the whitelist. */
-@Composable
-private fun DnsStatsCard(
-    blockedCount: Long,
-    whitelistedCount: Long,
-    customEntries: Int,
-    onManageWhitelist: () -> Unit,
-) {
-    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "DNS Blocker Stats",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Spacer(Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                StatChip(
-                    icon  = Icons.Rounded.Shield,
-                    label = "Blocked",
-                    value = blockedCount.toString(),
-                    tint  = MaterialTheme.colorScheme.error,
-                )
-                StatChip(
-                    icon  = Icons.Rounded.CheckCircle,
-                    label = "Whitelisted",
-                    value = whitelistedCount.toString(),
-                    tint  = Color(0xFF2E7D32),
-                )
-                StatChip(
-                    icon  = Icons.Rounded.CheckCircle,
-                    label = "Custom rules",
-                    value = customEntries.toString(),
-                    tint  = MaterialTheme.colorScheme.primary,
-                )
-            }
-            Spacer(Modifier.height(8.dp))
-            OutlinedButton(
-                onClick = onManageWhitelist,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Manage whitelist")
-            }
-        }
-    }
-}
-
-@Composable
-private fun StatChip(icon: ImageVector, label: String, value: String, tint: Color) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(20.dp))
-        Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
-/** Dialog for viewing and editing user-added whitelist entries. */
-@Composable
-private fun WhitelistDialog(
-    customEntries: Set<String>,
-    onAdd: (String) -> Unit,
-    onRemove: (String) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    var input by rememberSaveable { mutableStateOf("") }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Custom Whitelist") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = "Domains added here are never blocked. " +
-                           "Wildcards are automatic — adding example.com also covers sub.example.com.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                HorizontalDivider()
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    OutlinedTextField(
-                        value = input,
-                        onValueChange = { input = it.trim().lowercase() },
-                        placeholder = { Text("example.com") },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f),
-                        label = { Text("Add domain") },
-                    )
-                    Button(
-                        onClick = {
-                            if (input.isNotEmpty()) { onAdd(input); input = "" }
-                        },
-                        enabled = input.isNotEmpty(),
-                    ) { Text("Add") }
-                }
-                if (customEntries.isEmpty()) {
-                    Text(
-                        "No custom entries yet.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        customEntries.sorted().forEach { domain ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    text = domain,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    modifier = Modifier.weight(1f),
-                                )
-                                IconButton(onClick = { onRemove(domain) }) {
-                                    Icon(
-                                        Icons.Rounded.Close,
-                                        contentDescription = "Remove $domain",
-                                        tint = MaterialTheme.colorScheme.error,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Done") }
-        },
-    )
-}

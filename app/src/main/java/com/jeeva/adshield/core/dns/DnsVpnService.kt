@@ -97,7 +97,12 @@ class DnsVpnService : VpnService() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_STOP) { stopSelf(); return START_NOT_STICKY }
+        if (intent?.action == ACTION_STOP) {
+            isRunning = false
+            stopForeground(true)
+            stopSelf()
+            return START_NOT_STICKY
+        }
         isRunning = true
         resetCounters()
         startForeground(NOTIF_ID, buildNotification())
@@ -109,7 +114,12 @@ class DnsVpnService : VpnService() {
             launch { prefs.userWhitelistFlow.collect { whitelist = it } }
             establishTunnel()
         }
-        return START_STICKY
+        return START_NOT_STICKY
+    }
+
+    override fun onRevoke() {
+        isRunning = false
+        super.onRevoke()
     }
 
     private fun establishTunnel() {
@@ -210,7 +220,7 @@ class DnsVpnService : VpnService() {
             protect(sock)
             sock.soTimeout = 4000
             sock.send(DatagramPacket(dns, dns.size, InetAddress.getByName(UPSTREAM), 53))
-            val resp = ByteArray(1024)
+            val resp = ByteArray(4096)
             val dp = DatagramPacket(resp, resp.size)
             sock.receive(dp)
             sock.close()
