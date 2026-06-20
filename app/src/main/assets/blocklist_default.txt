@@ -1,7 +1,9 @@
-# AdShield Ad Blocklist
-# Subdomain matching is automatic: blocking foo.com also blocks bar.foo.com
+# AdShield Comprehensive Ad Blocklist
+# Subdomain matching is automatic — blocking foo.com also covers sub.foo.com
 
-# ── GOOGLE ADS & VIDEO AD SDK ─────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════
+# GOOGLE AD INFRASTRUCTURE
+# ══════════════════════════════════════════════════════════════════════
 doubleclick.net
 googlesyndication.com
 googleadservices.com
@@ -10,19 +12,51 @@ ads.google.com
 googletagservices.com
 imasdk.googleapis.com
 dai.google.com
+googletagmanager.com
+2mdn.net
 
-# ── POPUP / REDIRECT / INTERSTITIAL NETWORKS ──────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════
+# POPUP / REDIRECT / FORCED-REDIRECT NETWORKS
+# ══════════════════════════════════════════════════════════════════════
 popads.net
 popcash.net
 propellerads.com
 clickadu.com
 admaven.com
 hilltopads.net
+adcash.com
 trafficfactory.biz
 zeroredirect1.com
 zeroredirect2.com
+ouo.io
+adf.ly
+bc.vc
+q.gs
+exe.io
+sh.st
+linkbucks.com
+clkmon.com
+clkrev.com
+adfly.ru
+adfoc.us
+short.pe
 
-# ── PROGRAMMATIC AD EXCHANGES ─────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════
+# ADULT AD NETWORKS
+# ══════════════════════════════════════════════════════════════════════
+exoclick.com
+trafficjunky.net
+juicyads.com
+trafficstars.com
+tsyndicate.com
+plugrush.com
+ero-advertising.com
+reporo.com
+adxxx.com
+
+# ══════════════════════════════════════════════════════════════════════
+# PROGRAMMATIC SSPs / AD EXCHANGES
+# ══════════════════════════════════════════════════════════════════════
 rubiconproject.com
 pubmatic.com
 openx.net
@@ -32,46 +66,128 @@ adnxs.com
 casalemedia.com
 indexexchange.com
 smartadserver.com
-33across.com
 sovrn.com
 lijit.com
+33across.com
 yieldmo.com
 triplelift.com
 sharethrough.com
 unrulymedia.com
 teads.tv
 teads.com
-
-# ── DEMAND-SIDE PLATFORMS ─────────────────────────────────────────────────────
-adsrvr.org
+magnite.com
+yieldlab.net
+yieldlab.de
+improve-digital.com
+rhythmone.com
+1rx.io
+emxdgt.com
+synacor.com
+gumgum.com
+stickyads.tv
+bidswitch.net
+bidtheatre.com
+smartclip.net
+smartclip.com
+adtelligent.com
+setupad.com
+setupad.net
+setupad.net
+adnetwork.net
 advertising.com
-media.net
+oath.com
+adtech.com
+lkqd.net
+lkqd.com
+
+# ══════════════════════════════════════════════════════════════════════
+# VIDEO AD PLATFORMS
+# ══════════════════════════════════════════════════════════════════════
+freewheel.tv
+freewheel.net
+spotx.tv
+spotxchange.com
+springserve.com
+springserve.net
+tremorvideo.com
+tremormedia.com
+smartstream.tv
+videoplaza.com
+videohub.tv
+adtelligent.com
+teads.tv
+
+# ══════════════════════════════════════════════════════════════════════
+# DEMAND-SIDE PLATFORMS (DSPs)
+# ══════════════════════════════════════════════════════════════════════
+adsrvr.org
+thetradedesk.com
 criteo.com
 criteo.net
 amazon-adsystem.com
 ads.amazon.com
+sizmek.com
+flashtalking.com
+mediamath.com
+turn.com
+amobee.com
+rocketfuel.com
+conversantmedia.com
+lotame.com
+quantcast.com
+dstillery.com
+eyeota.com
+zemanta.com
+adelphic.com
 
-# ── CONTENT RECOMMENDATION ADS ───────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════
+# CONTENT RECOMMENDATION / NATIVE ADS
+# ══════════════════════════════════════════════════════════════════════
 outbrain.com
+outbrain.net
+outbrainimg.com
 taboola.com
+taboolasyndication.com
 revcontent.com
 content.ad
+contentad.net
 mgid.com
 zergnet.com
+nativo.com
+nativo.net
+nativoplatform.com
+plista.com
+adblade.com
+adblade.net
+powerlinks.com
+spoutable.com
+shareaholic.com
+sharethis.com
+addthis.com
+traffective.com
+mantisadnetwork.com
+mantis-ad.com
+zemanta.com
+disqusads.com
 
-# ── SOCIAL MEDIA ADS ─────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════
+# SOCIAL MEDIA AD DELIVERY
+# ══════════════════════════════════════════════════════════════════════
 connect.facebook.net
 an.facebook.com
+fbadnw.com
+audiencenetwork.com
+atlassolutions.com
+ads.twitter.com
+static.ads-twitter.com
+syndication.twitter.com
+ads.linkedin.com
+px.ads.linkedin.com
+snap.licdn.com
 
-# ── ADULT AD NETWORKS ─────────────────────────────────────────────────────────
-exoclick.com
-trafficjunky.net
-juicyads.com
-trafficstars.com
-tsyndicate.com
-plugrush.com
-
-# ── MOBILE AD SDKS ───────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════
+# MOBILE AD SDKs
+# ══════════════════════════════════════════════════════════════════════
 admob.com
 unityads.unity3d.com
 applovin.com
@@ -81,16 +197,98 @@ chartboost.com
 inmobi.com
 mopub.com
 moatads.com
-smaato.net
 adcolony.com
+tapjoy.com
+fyber.com
+digitalturbine.com
+loopme.com
+loopme.biz
+startapp.com
+leadbolt.com
+airpush.com
+appodeal.com
+mintegral.com
+mintegral.io
+moloco.com
+supersonic.com
+admost.com
+smaato.net
+smaato.com
+verve.com
+pubnative.net
+ads.pubnative.net
+kidoz.net
+hyprmx.com
+verizonmedia.com
 
-# ── TRACKING & DATA BROKERS ───────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════
+# TRACKING & DATA BROKERS (that feed ad targeting)
+# ══════════════════════════════════════════════════════════════════════
 scorecardresearch.com
 quantserve.com
 demdex.net
 bluekai.com
-bidswitch.net
-rlcdn.com
-agkn.com
 adform.net
 adform.com
+rlcdn.com
+agkn.com
+liveramp.com
+doubleverify.com
+integralads.com
+adloox.com
+epsilon.com
+eyereturn.com
+dotomi.com
+dotomi.net
+valueclick.com
+valueclick.net
+semasio.com
+semasio.net
+liveintent.com
+liveintent.io
+pixalate.com
+rtmark.net
+
+# ══════════════════════════════════════════════════════════════════════
+# INDIA-SPECIFIC AD NETWORKS
+# ══════════════════════════════════════════════════════════════════════
+inmobi.com
+adgebra.com
+silverpush.com
+adpushup.com
+komli.com
+vdo.ai
+affle.com
+tyroo.com
+ad6media.fr
+adguru.net
+adsterra.com
+
+# ══════════════════════════════════════════════════════════════════════
+# MISCELLANEOUS AD SERVERS
+# ══════════════════════════════════════════════════════════════════════
+adzerk.com
+adzerk.net
+carbonads.com
+carbonads.net
+buysellads.com
+buysellads.net
+celtra.com
+undertone.com
+brightmountainmedia.com
+netlytic.com
+adglare.net
+ad-stir.com
+reachads.com
+adnimation.com
+pub.network
+tanx.com
+alimama.com
+adhese.com
+xhb.com
+mathtag.com
+flashtalking.com
+pointroll.com
+eyeblaster.com
+mediamind.com
+sizmek.com

@@ -127,7 +127,17 @@ class DnsVpnService : VpnService() {
             .setSession("AdShield")
             .addAddress(VPN_ADDR, 32)
             .addDnsServer(DNS_ADDR)
-            .addRoute(DNS_ADDR, 32)   // only route fake DNS through tunnel
+            .addRoute(DNS_ADDR, 32)      // fake DNS
+            // Route popular DoH/DoT resolvers through the tunnel so we can drop them,
+            // forcing Chrome and other apps to fall back to plain system DNS (which we intercept).
+            .addRoute("8.8.8.8", 32)    // Google DoH
+            .addRoute("8.8.4.4", 32)    // Google DoH alternate
+            .addRoute("1.1.1.1", 32)    // Cloudflare DoH
+            .addRoute("1.0.0.1", 32)    // Cloudflare DoH alternate
+            .addRoute("9.9.9.9", 32)    // Quad9 DoH
+            .addRoute("149.112.112.112", 32) // Quad9 secondary
+            .addRoute("208.67.222.222", 32)  // OpenDNS
+            .addRoute("208.67.220.220", 32)  // OpenDNS
             .setBlocking(true)
             .setMtu(1500)
             .establish() ?: return
@@ -154,16 +164,25 @@ class DnsVpnService : VpnService() {
     }
 
     private fun dispatch(pkt: ByteArray) {
+        if (pkt.size < 20) return
+        val ipLen = (pkt[0].toInt() and 0x0F) * 4
+        if (ipLen + 4 > pkt.size) return
+        val dstPort = pkt.u16(ipLen + 2)
+
+        // Drop DoH (port 443) and DoT (port 853) to known public resolvers.
+        // This forces Chrome out of its DoH fast-path and back to plain UDP DNS,
+        // which we intercept and filter.
+        if ((dstPort == 443 || dstPort == 853) && isDohProvider(pkt)) return
+
+        // Only handle UDP DNS from here on
         if (pkt.size < 28) return
         if (pkt[9].toInt() and 0xFF != 17) return          // not UDP
-        val ipLen = (pkt[0].toInt() and 0x0F) * 4
-        if (pkt.u16(ipLen + 2) != 53) return               // dest port ≠ 53
+        if (dstPort != 53) return                           // dest port ≠ 53
         val dnsOff = ipLen + 8
         val domain = extractDomain(pkt, dnsOff) ?: return
 
         when {
             matchesSet(domain, whitelist) -> {
-                // Whitelist wins — always forward, never block
                 whitelistedCount.incrementAndGet()
                 scope.launch { forwardUpstream(pkt, ipLen, dnsOff) }
             }
@@ -176,10 +195,36 @@ class DnsVpnService : VpnService() {
         }
     }
 
-    /** Returns true if [domain] exactly matches or is a subdomain of any entry in [set]. */
-    private fun matchesSet(domain: String, set: Set<String>): Boolean =
-        set.contains(domain) ||
-        set.any { entry -> domain.length > entry.length && domain.endsWith(".$entry") }
+    /** Checks destination IP bytes 16-19 against known DoH/DoT provider addresses. */
+    private fun isDohProvider(pkt: ByteArray): Boolean {
+        val a = pkt[16].toInt() and 0xFF
+        val b = pkt[17].toInt() and 0xFF
+        val c = pkt[18].toInt() and 0xFF
+        val d = pkt[19].toInt() and 0xFF
+        return (a == 8   && b == 8   && c == 8   && d == 8)   ||  // 8.8.8.8
+               (a == 8   && b == 8   && c == 4   && d == 4)   ||  // 8.8.4.4
+               (a == 1   && b == 1   && c == 1   && d == 1)   ||  // 1.1.1.1
+               (a == 1   && b == 0   && c == 0   && d == 1)   ||  // 1.0.0.1
+               (a == 9   && b == 9   && c == 9   && d == 9)   ||  // 9.9.9.9
+               (a == 149 && b == 112 && c == 112 && d == 112) ||  // 149.112.112.112
+               (a == 208 && b == 67  && c == 222 && d == 222) ||  // 208.67.222.222
+               (a == 208 && b == 67  && c == 220 && d == 220)     // 208.67.220.220
+    }
+
+    /**
+     * O(k) subdomain lookup — checks the domain and each of its parent labels against [set].
+     * k = number of domain labels (typically 2-3), so this is constant-time in practice
+     * regardless of how large the blocklist grows.
+     */
+    private fun matchesSet(domain: String, set: Set<String>): Boolean {
+        if (set.contains(domain)) return true
+        var dot = domain.indexOf('.')
+        while (dot != -1) {
+            if (set.contains(domain.substring(dot + 1))) return true
+            dot = domain.indexOf('.', dot + 1)
+        }
+        return false
+    }
 
     private fun extractDomain(pkt: ByteArray, dnsOff: Int): String? {
         if (dnsOff + 12 >= pkt.size) return null
