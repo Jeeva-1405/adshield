@@ -1,6 +1,7 @@
 package com.jeeva.adshield.data.prefs
 
 import android.content.Context
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -12,8 +13,9 @@ private val Context.dataStore by preferencesDataStore(name = "adshield_prefs")
 
 class AppPreferences(private val context: Context) {
 
-    private val patchedKey   = stringSetPreferencesKey("patched_apps")
-    private val whitelistKey = stringSetPreferencesKey("user_whitelist")
+    private val patchedKey       = stringSetPreferencesKey("patched_apps")
+    private val whitelistKey     = stringSetPreferencesKey("user_whitelist")
+    private val setupCompleteKey = booleanPreferencesKey("setup_complete")
 
     // ── Patched apps ──────────────────────────────────────────────────────────
 
@@ -29,6 +31,17 @@ class AppPreferences(private val context: Context) {
     /** Removes the patched mark so the user can re-patch. */
     suspend fun clearPatched(pkg: String) {
         context.dataStore.edit { it[patchedKey] = (it[patchedKey] ?: emptySet()) - pkg }
+    }
+
+    // ── Setup completion ──────────────────────────────────────────────────────
+
+    /** True once the user has completed the full one-click setup at least once. */
+    suspend fun isSetupComplete(): Boolean =
+        context.dataStore.data.map { it[setupCompleteKey] ?: false }.first()
+
+    /** Marks setup as complete so future "Block All Ads" taps skip the orchestrator. */
+    suspend fun markSetupComplete() {
+        context.dataStore.edit { it[setupCompleteKey] = true }
     }
 
     // ── User whitelist ────────────────────────────────────────────────────────

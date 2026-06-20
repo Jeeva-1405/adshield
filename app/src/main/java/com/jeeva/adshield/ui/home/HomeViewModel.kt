@@ -76,6 +76,8 @@ data class HomeUiState(
     val xManagerInstalled: Boolean = false,
     // Live feed of recently blocked domains for debugging
     val recentlyBlocked: List<String> = emptyList(),
+    // True once setup was completed; "Block All Ads" then becomes a DNS-only quick toggle
+    val setupEverCompleted: Boolean = false,
 )
 
 // ── ViewModel ─────────────────────────────────────────────────────────────────
@@ -138,6 +140,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             DnsVpnService.recentlyBlocked.collect { list ->
                 _uiState.update { it.copy(recentlyBlocked = list) }
             }
+        }
+        // Load persisted setup-complete flag so "Block All Ads" quick-enables on relaunch
+        viewModelScope.launch(Dispatchers.IO) {
+            val done = prefs.isSetupComplete()
+            _uiState.update { it.copy(setupEverCompleted = done) }
         }
         refresh()
     }
@@ -213,6 +220,16 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             val applicable = stepStates.values.count { it !is SetupStepState.Skipped ||
                     (it as SetupStepState.Skipped).reason != "Not installed" }
 
+            // Mark setup complete if DNS started (even if other steps were skipped)
+            val dnsOk = stepStates[SetupStep.ChromeDns].let {
+                it == SetupStepState.Success ||
+                (it is SetupStepState.Skipped && it.reason == "Already active")
+            }
+            if (dnsOk) {
+                viewModelScope.launch(Dispatchers.IO) { prefs.markSetupComplete() }
+                _uiState.update { it.copy(setupEverCompleted = true) }
+            }
+
             _uiState.update { s ->
                 s.copy(
                     setupState = SetupUiState.Complete(
@@ -225,6 +242,19 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 )
             }
             refresh()
+        }
+    }
+
+    /**
+     * Smart "Block All Ads" dispatcher.
+     * After first-time setup the button becomes a DNS-only quick toggle — no re-downloads.
+     * On first run it goes through the full orchestrator to download + install patched apps.
+     */
+    fun onBlockAllAds(context: Context) {
+        if (_uiState.value.setupEverCompleted) {
+            onEnableDns(context)
+        } else {
+            startSetup()
         }
     }
 
@@ -287,19 +317,17 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         setupJob = null
         vpnDeferred?.cancel()
         vpnDeferred = null
-        if (DnsVpnService.isRunning) {
-            context.startService(Intent(context, DnsVpnService::class.java).apply {
-                action = DnsVpnService.ACTION_STOP
-            })
-        }
+        // Flip DNS flag immediately so the hero card transitions to "Block All Ads" right away
         _uiState.update { it.copy(
             isSetupRunning  = false,
+            isDnsRunning    = false,
             setupState      = SetupUiState.Idle,
             setupStepStates = emptyMap(),
             patchingPkg     = null,
             patchStep       = null,
         )}
-        viewModelScope.launch { delay(400); refresh() }
+        context.stopService(Intent(context, DnsVpnService::class.java))
+        viewModelScope.launch { delay(600); refresh() }
     }
 
     /** Called when user taps "Patch" on a YouTube / YT Music / Spotify card. */

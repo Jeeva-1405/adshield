@@ -140,7 +140,7 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
             PrimarySetupCard(
                 state        = uiState.setupState,
                 isDnsRunning = uiState.isDnsRunning,
-                onStart      = { viewModel.startSetup() },
+                onStart      = { viewModel.onBlockAllAds(context) },
                 onRerun      = { viewModel.startSetup() },
                 onStopAll    = { viewModel.onStopAll(context) },
             )
