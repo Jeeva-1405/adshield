@@ -7,19 +7,14 @@ import kotlinx.coroutines.withContext
 
 object WhitelistRepository {
 
-    /** Loads the combined whitelist: bundled defaults + user-added entries. */
+    /**
+     * Returns only user-added whitelist entries.
+     * The bundled CDN whitelist was removed because the curated blocklist no longer
+     * contains any CDN or content-serving domains — it is not needed.
+     * Power users can still add domains via the in-app whitelist dialog.
+     */
     suspend fun load(context: Context, prefs: AppPreferences): Set<String> =
         withContext(Dispatchers.IO) {
-            loadDefaults(context) + prefs.getUserWhitelist()
+            prefs.getUserWhitelist()
         }
-
-    private fun loadDefaults(context: Context): Set<String> = buildSet {
-        context.assets.open("whitelist_default.txt").bufferedReader().useLines { lines ->
-            for (line in lines) {
-                val trimmed = line.trim()
-                if (trimmed.isEmpty() || trimmed.startsWith('#')) continue
-                add(trimmed.lowercase())
-            }
-        }
-    }
 }

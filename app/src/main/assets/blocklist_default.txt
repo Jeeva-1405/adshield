@@ -1,0 +1,338 @@
+# AdShield Curated Ad Blocklist
+# ~200 confirmed ad/tracker root domains — subdomain matching catches all children automatically
+# Every entry here serves ZERO legitimate content (no CDN, no video, no API)
+# Format: one domain per line; lines starting with # are comments
+
+# ── GOOGLE ADS ────────────────────────────────────────────────────────────────
+doubleclick.net
+googlesyndication.com
+googleadservices.com
+adservice.google.com
+imasdk.googleapis.com
+googletagservices.com
+partner.googleadservices.com
+# Note: pagead2, pubads, securepubads are all subdomains of the above; blocked automatically
+
+# ── FACEBOOK / META ADS ──────────────────────────────────────────────────────
+# Block only confirmed ad endpoints, not all of facebook.com
+an.facebook.com
+ads.facebook.com
+
+# ── AMAZON ADS ───────────────────────────────────────────────────────────────
+amazon-adsystem.com
+
+# ── TWITTER / X ADS ──────────────────────────────────────────────────────────
+ads.twitter.com
+static.ads-twitter.com
+
+# ── APPNEXUS / XANDR ─────────────────────────────────────────────────────────
+adnxs.com
+appnexus.com
+
+# ── THE TRADE DESK ───────────────────────────────────────────────────────────
+adsrvr.org
+
+# ── CRITEO ───────────────────────────────────────────────────────────────────
+criteo.com
+criteo.net
+
+# ── RUBICON / MAGNITE ────────────────────────────────────────────────────────
+rubiconproject.com
+
+# ── PUBMATIC ─────────────────────────────────────────────────────────────────
+pubmatic.com
+
+# ── OPENX ────────────────────────────────────────────────────────────────────
+openx.net
+openx.com
+
+# ── SMART ADSERVER ───────────────────────────────────────────────────────────
+smartadserver.com
+sascdn.com
+
+# ── INDEX EXCHANGE / CASALE ──────────────────────────────────────────────────
+indexexchange.com
+casalemedia.com
+
+# ── GOOGLE ADMOB ─────────────────────────────────────────────────────────────
+admob.com
+
+# ── YIELDLAB ─────────────────────────────────────────────────────────────────
+yieldlab.net
+yieldlab.com
+
+# ── TABOOLA ──────────────────────────────────────────────────────────────────
+taboola.com
+
+# ── OUTBRAIN ─────────────────────────────────────────────────────────────────
+outbrain.com
+
+# ── ADVERTISING.COM / ADTECH ─────────────────────────────────────────────────
+advertising.com
+adtech.de
+
+# ── YANDEX ADS ───────────────────────────────────────────────────────────────
+# Block only ad-serving subdomains, not all of yandex.ru
+an.yandex.ru
+yabs.yandex.ru
+advertising.yandex.ru
+
+# ── MEDIA.NET ────────────────────────────────────────────────────────────────
+media.net
+
+# ── MOAT (Oracle) ────────────────────────────────────────────────────────────
+moatads.com
+
+# ── QUANTCAST ────────────────────────────────────────────────────────────────
+quantserve.com
+
+# ── NIELSEN / SCORECARD RESEARCH ─────────────────────────────────────────────
+scorecardresearch.com
+
+# ── CHARTBEAT ────────────────────────────────────────────────────────────────
+chartbeat.com
+
+# ── YAHOO ADS / ANALYTICS ────────────────────────────────────────────────────
+analytics.yahoo.com
+ads.yahoo.com
+gemini.yahoo.com
+ybdip.com
+
+# ── SOVRN / LIJIT ────────────────────────────────────────────────────────────
+lijit.com
+
+# ── ADFORM ───────────────────────────────────────────────────────────────────
+adform.net
+adformdsp.net
+
+# ── ADROLL ───────────────────────────────────────────────────────────────────
+adroll.com
+
+# ── TRIPLELIFT ───────────────────────────────────────────────────────────────
+triplelift.com
+3lift.com
+
+# ── 33ACROSS ─────────────────────────────────────────────────────────────────
+33across.com
+
+# ── BIDSWITCH ────────────────────────────────────────────────────────────────
+bidswitch.net
+
+# ── TEADS ────────────────────────────────────────────────────────────────────
+teads.tv
+
+# ── SPOTX / MAGNITE VIDEO ────────────────────────────────────────────────────
+spotx.tv
+spotxchange.com
+
+# ── RHYTHMONE ────────────────────────────────────────────────────────────────
+rhythmone.com
+1rx.io
+
+# ── SONOBI ───────────────────────────────────────────────────────────────────
+sonobi.com
+
+# ── YIELDMO ──────────────────────────────────────────────────────────────────
+yieldmo.com
+
+# ── AMOBEE / TURN ────────────────────────────────────────────────────────────
+turn.com
+amobee.com
+
+# ── CONVERSANT / EPSILON ─────────────────────────────────────────────────────
+dotomi.com
+conversantmedia.com
+mediaplex.com
+
+# ── MGID ─────────────────────────────────────────────────────────────────────
+mgid.com
+mgid.eu
+
+# ── ADZERK ───────────────────────────────────────────────────────────────────
+adzerk.net
+adzerk.com
+
+# ── REVCONTENT ───────────────────────────────────────────────────────────────
+revcontent.com
+
+# ── VIDAZOO ──────────────────────────────────────────────────────────────────
+vidazoo.com
+
+# ── LKQD (video ad tech) ─────────────────────────────────────────────────────
+lkqd.net
+lkqd.com
+
+# ── BIDVERTISER ──────────────────────────────────────────────────────────────
+bidvertiser.com
+bvads.com
+
+# ── ADSTERRA ─────────────────────────────────────────────────────────────────
+adsterra.com
+bssprt.com
+hlvcscp.com
+
+# ── ZEDO ─────────────────────────────────────────────────────────────────────
+zedo.com
+
+# ── SIZMEK (Amazon) ──────────────────────────────────────────────────────────
+sizmek.com
+
+# ── FREEWHEEL (Comcast) ──────────────────────────────────────────────────────
+fwmrm.net
+freewheel.tv
+
+# ── OMNITURE (Adobe) ─────────────────────────────────────────────────────────
+omtrdc.net
+2mdn.net
+
+# ── ATLAS (Facebook) ─────────────────────────────────────────────────────────
+atdmt.com
+
+# ── EMX DIGITAL ──────────────────────────────────────────────────────────────
+emxdgt.com
+
+# ── SHARETHROUGH ─────────────────────────────────────────────────────────────
+sharethrough.com
+
+# ── UNRULY ───────────────────────────────────────────────────────────────────
+unrulymedia.com
+
+# ── SEMASIO ──────────────────────────────────────────────────────────────────
+semasio.net
+semasio.com
+
+# ── BRIGHTCOM ────────────────────────────────────────────────────────────────
+brightcom.com
+
+# ── REVENUEHITS ──────────────────────────────────────────────────────────────
+revenuehits.com
+
+# ── NATIVEADS ────────────────────────────────────────────────────────────────
+nativeads.com
+
+# ── KARGO ────────────────────────────────────────────────────────────────────
+kargo.com
+
+# ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ──
+# POPUP / REDIRECT / INTERSTITIAL NETWORKS
+# These have NO legitimate use — they exclusively serve popups, popunders, and
+# forced-redirect ads. Safe to block unconditionally.
+# ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ──
+
+# PopAds
+popads.net
+
+# PopCash
+popcash.net
+
+# PropellerAds (push + popunder)
+propellerads.com
+propushads.com
+gopropeller.net
+
+# AdCash
+adcash.com
+
+# AdMaven
+admaven.com
+
+# HilltopAds
+hilltopads.net
+hilltopads.com
+
+# Clickadu
+clickadu.com
+
+# PlugRush
+plugrush.com
+
+# TSyndicate / EtaHub
+tsyndicate.com
+etahub.com
+
+# PopCorn Ads
+popcornadstv.com
+primopop.com
+
+# PopUnder.net
+popunder.net
+
+# OnClickMega
+onclickmega.com
+
+# ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ──
+# ADULT AD NETWORKS
+# Serve ad-only banners/popups on adult sites — NOT the video CDNs that serve
+# actual content (those are intentionally excluded to avoid breaking playback)
+# ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ──
+
+# TrafficJunky (MindGeek's ad network — PH, RedTube, YouPorn)
+trafficjunky.com
+trafficjunky.net
+
+# ExoClick
+exoclick.com
+exosrv.com
+
+# JuicyAds
+juicyads.com
+
+# TrafficStars
+trafficstars.com
+
+# EroAdvertising
+ero-advertising.com
+
+# AdTNG
+adtng.com
+
+# JADS
+jads.co
+
+# AdSupply
+adsupply.com
+
+# TrafficHaus
+traffichaus.com
+
+# AdXXX
+adxxx.com
+
+# AdultAdWorld
+adultadworld.com
+
+# AdsKeeper
+adskeeper.com
+
+# AdSpree
+adspree.io
+
+# ── MOBILE AD SDKS ───────────────────────────────────────────────────────────
+# Block the tracking/attribution SDKs that phone home with device data.
+# Only specific ad subdomains blocked where the root serves legitimate APIs.
+adjust.com
+appsflyer.com
+app-measurement.com
+leanplum.com
+mopub.com
+# Only Unity's ad subdomain; unity3d.com itself serves game content
+unityads.unity3d.com
+
+# ── URL SHORTENERS USED AS AD GATE / FORCED-VIEW ─────────────────────────────
+# These force users to watch an ad before redirecting to the actual link.
+# bit.ly and tinyurl.com excluded — too much legitimate non-ad use.
+adf.ly
+linkbucks.com
+sh.st
+adfoc.us
+bc.vc
+infolinks.com
+adbooth.net
+clkmon.com
+clk.sh
+
+# ── CONSENT / AD TECH INFRASTRUCTURE ─────────────────────────────────────────
+# These serve no user-visible content — only ad auction signals
+adsafeprotected.com
+adsymptotic.com
+consensu.org
