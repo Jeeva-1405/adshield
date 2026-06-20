@@ -15,6 +15,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -54,15 +57,39 @@ class DnsVpnService : VpnService() {
         /** Cumulative DNS queries allowed by the whitelist since the service started. */
         val whitelistedCount = AtomicLong(0)
 
-        /** Resets both counters; call when the service starts. */
-        fun resetCounters() { blockedCount.set(0); whitelistedCount.set(0) }
+        private val _recentlyBlocked = MutableStateFlow<List<String>>(emptyList())
+
+        /** The last 20 blocked domains, most recent first. */
+        val recentlyBlocked: StateFlow<List<String>> = _recentlyBlocked.asStateFlow()
+
+        /** Prepends [domain] to the list; deduplicates consecutive identical queries. */
+        fun addRecentlyBlocked(domain: String) {
+            val cur = _recentlyBlocked.value
+            if (cur.firstOrNull() == domain) return
+            _recentlyBlocked.value = (listOf(domain) + cur).take(20)
+        }
+
+        /** Removes [domain] from the list (called after user taps Allow). */
+        fun removeRecentlyBlocked(domain: String) {
+            _recentlyBlocked.value = _recentlyBlocked.value.filter { it != domain }
+        }
+
+        /** Resets counters and clears the recently-blocked list; call when the service starts. */
+        fun resetCounters() {
+            blockedCount.set(0)
+            whitelistedCount.set(0)
+            _recentlyBlocked.value = emptyList()
+        }
     }
 
     private var tun: ParcelFileDescriptor? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val outQueue = Channel<ByteArray>(Channel.UNLIMITED)
     private var blocklist: Set<String> = emptySet()
-    private var whitelist: Set<String> = emptySet()
+
+    // @Volatile so that the whitelist-sync coroutine's writes are visible to the packet-dispatch
+    // coroutine, which may run on a different IO thread.
+    @Volatile private var whitelist: Set<String> = emptySet()
 
     override fun onCreate() {
         super.onCreate()
@@ -78,6 +105,8 @@ class DnsVpnService : VpnService() {
             val prefs = AppPreferences(applicationContext)
             blocklist = BlocklistRepository.load(applicationContext)
             whitelist = WhitelistRepository.load(applicationContext, prefs)
+            // Keep whitelist live — when user taps Allow the change takes effect immediately
+            launch { prefs.userWhitelistFlow.collect { whitelist = it } }
             establishTunnel()
         }
         return START_STICKY
@@ -130,6 +159,7 @@ class DnsVpnService : VpnService() {
             }
             matchesSet(domain, blocklist) -> {
                 blockedCount.incrementAndGet()
+                addRecentlyBlocked(domain)
                 outQueue.trySend(nxDomainReply(pkt, ipLen, dnsOff))
             }
             else -> scope.launch { forwardUpstream(pkt, ipLen, dnsOff) }

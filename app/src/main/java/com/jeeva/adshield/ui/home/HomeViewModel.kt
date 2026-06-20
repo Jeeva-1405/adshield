@@ -74,6 +74,8 @@ data class HomeUiState(
     val showWhitelistDialog: Boolean = false,
     // xManager state for Spotify card
     val xManagerInstalled: Boolean = false,
+    // Live feed of recently blocked domains for debugging
+    val recentlyBlocked: List<String> = emptyList(),
 )
 
 // ── ViewModel ─────────────────────────────────────────────────────────────────
@@ -131,6 +133,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             IntentFilter(PatcherService.ACTION_PROGRESS),
             ContextCompat.RECEIVER_NOT_EXPORTED,
         )
+        // Collect recently-blocked list live from the DNS service
+        viewModelScope.launch {
+            DnsVpnService.recentlyBlocked.collect { list ->
+                _uiState.update { it.copy(recentlyBlocked = list) }
+            }
+        }
         refresh()
     }
 
@@ -308,6 +316,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun openWhitelistDialog() = _uiState.update { it.copy(showWhitelistDialog = true) }
     fun closeWhitelistDialog() = _uiState.update { it.copy(showWhitelistDialog = false) }
+
+    /** Whitelists a blocked domain and removes it from the recently-blocked list immediately. */
+    fun onAllowBlocked(domain: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            prefs.addToWhitelist(domain)
+            DnsVpnService.removeRecentlyBlocked(domain)
+        }
+    }
 
     fun addToWhitelist(domain: String) {
         viewModelScope.launch(Dispatchers.IO) {

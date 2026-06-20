@@ -151,6 +151,12 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
                     customEntries    = uiState.customWhitelist.size,
                     onManageWhitelist = { viewModel.openWhitelistDialog() },
                 )
+                if (uiState.recentlyBlocked.isNotEmpty()) {
+                    RecentlyBlockedCard(
+                        domains = uiState.recentlyBlocked,
+                        onAllow = { viewModel.onAllowBlocked(it) },
+                    )
+                }
             }
 
             if (uiState.isLoading) {
@@ -311,6 +317,41 @@ private fun statusLabel(status: TargetAppStatus): String = when (status) {
     is TargetAppStatus.Installed     -> "Installed • v${status.versionName}"
     is TargetAppStatus.BlockerActive -> "DNS blocker active"
     is TargetAppStatus.Patched       -> "Patched"
+}
+
+/** Scrollable list of the last 20 blocked domains with a one-tap Allow button per row. */
+@Composable
+private fun RecentlyBlockedCard(
+    domains: List<String>,
+    onAllow: (String) -> Unit,
+) {
+    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Recently Blocked (${domains.size})",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(Modifier.height(8.dp))
+            domains.forEachIndexed { index, domain ->
+                if (index > 0) HorizontalDivider(modifier = Modifier.padding(vertical = 2.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = domain,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = { onAllow(domain) }) {
+                        Text("Allow", style = MaterialTheme.typography.labelMedium)
+                    }
+                }
+            }
+        }
+    }
 }
 
 /** Live DNS stats: blocked count, whitelisted count, and a button to manage the whitelist. */
