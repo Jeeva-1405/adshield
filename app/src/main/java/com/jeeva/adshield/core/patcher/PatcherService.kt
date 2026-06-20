@@ -68,6 +68,12 @@ class PatcherService : Service() {
 
     private suspend fun runPatcher(pkg: String) {
         try {
+            if (pkg == TargetApps.SPOTIFY) {
+                runXManagerInstall()
+                broadcastDone(pkg)
+                return
+            }
+
             val assetName = assetFor(pkg)
 
             emit("Looking up latest release…", 5)
@@ -91,10 +97,18 @@ class PatcherService : Service() {
         }
     }
 
+    private suspend fun runXManagerInstall() {
+        val filename = "xManager.apk"
+        val url = "https://github.com/Team-xManager/xManager/releases/latest/download/xManager.apk"
+        emit("Downloading xManager…", 15)
+        val apk = download(url, filename) { p -> emit("Downloading… $p%", 15 + p * 70 / 100) }
+        emit("Launching installer…", 90)
+        withContext(Dispatchers.Main) { ApkInstaller.install(applicationContext, apk) }
+    }
+
     private fun assetFor(pkg: String): String = when (pkg) {
         TargetApps.YOUTUBE       -> "youtube-revanced.apk"
         TargetApps.YOUTUBE_MUSIC -> "youtube-music-revanced.apk"
-        TargetApps.SPOTIFY       -> "spotify-revanced.apk"
         else -> throw IllegalArgumentException("No asset mapping for $pkg")
     }
 

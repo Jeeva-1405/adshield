@@ -126,7 +126,7 @@ class SetupOrchestrator(
         SetupStep.ChromeDns    -> executeChromeDns(step, emit)
         SetupStep.YouTubePatch -> executePatch(step, "youtube-revanced.apk",      basePercent, endPercent, emit)
         SetupStep.YtMusicPatch -> executePatch(step, "youtube-music-revanced.apk", basePercent, endPercent, emit)
-        SetupStep.SpotifyPatch -> executePatch(step, "spotify-revanced.apk",       basePercent, endPercent, emit)
+        SetupStep.SpotifyPatch -> executeXManagerInstall(step, basePercent, endPercent, emit)
     }
 
     // ── Chrome DNS step ───────────────────────────────────────────────────────
@@ -191,6 +191,48 @@ class SetupOrchestrator(
                else SetupStepState.Failed("Install was cancelled or failed")
     }
 
+    // ── xManager install step ─────────────────────────────────────────────────
+
+    private suspend fun executeXManagerInstall(
+        step: SetupStep,
+        basePercent: Int,
+        endPercent: Int,
+        emit: suspend (SetupProgress) -> Unit,
+    ): SetupStepState {
+        val range = endPercent - basePercent
+        val filename = "xManager.apk"
+        val url = "https://github.com/Team-xManager/xManager/releases/latest/download/xManager.apk"
+
+        downloader.downloadFrom(url, filename).collect { dp ->
+            val p = basePercent + dp.percent * range * 70 / 10000
+            emit(SetupProgress(step, SetupStepState.Running, p, "Downloading xManager… ${dp.percent}%"))
+        }
+
+        emit(SetupProgress(step, SetupStepState.Running, basePercent + range * 75 / 100, "Preparing installer…"))
+
+        val apkFile = downloader.getFile(filename)
+        val sessionId = writeSession(apkFile)
+            ?: return SetupStepState.Failed("Failed to create installer session")
+
+        val success = coroutineScope {
+            val resultJob = async {
+                withTimeoutOrNull(120_000L) {
+                    InstallReceiver.results
+                        .filter { it.sessionId == sessionId }
+                        .first()
+                        .success
+                } ?: false
+            }
+            emit(SetupProgress(step, SetupStepState.Running, basePercent + range * 85 / 100, "Waiting for install…"))
+            commitSession(sessionId)
+            resultJob.await()
+        }
+
+        // xManager manages Spotify internally — don't mark Spotify as patched here
+        return if (success) SetupStepState.Success
+               else SetupStepState.Failed("Install was cancelled or failed")
+    }
+
     // ── PackageInstaller helpers ───────────────────────────────────────────────
 
     /** Creates a session and writes the APK bytes; returns the session ID or null on error. */
@@ -227,6 +269,11 @@ class SetupOrchestrator(
             !isInstalled(TargetApps.CHROME) -> "Not installed"
             DnsVpnService.isRunning          -> "Already active"
             else                             -> null
+        }
+        SetupStep.SpotifyPatch -> when {
+            !isInstalled(TargetApps.SPOTIFY)  -> "Not installed"
+            isInstalled(TargetApps.XMANAGER)  -> "xManager installed"
+            else                              -> null
         }
         else -> patchSkipReason(step.pkg)
     }

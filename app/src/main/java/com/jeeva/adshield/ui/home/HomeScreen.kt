@@ -156,14 +156,17 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
                     val isOrchestratorActive = orchestratedStep is SetupStepState.Running
                     val isManualPatching     = uiState.patchingPkg == info.packageName
                     val isChrome             = info.packageName == TargetApps.CHROME
+                    val isSpotify            = info.packageName == TargetApps.SPOTIFY
 
                     val actionLabel = when {
-                        isChrome && uiState.isDnsRunning -> "Disable DNS"
-                        isChrome && isOrchestratorActive -> "Setting up…"
-                        isChrome                          -> "Enable DNS"
-                        isOrchestratorActive              -> "Patching…"
-                        isManualPatching                  -> "Patching…"
-                        else                              -> info.actionLabel
+                        isChrome && uiState.isDnsRunning          -> "Disable DNS"
+                        isChrome && isOrchestratorActive          -> "Setting up…"
+                        isChrome                                   -> "Enable DNS"
+                        isOrchestratorActive                       -> "Patching…"
+                        isManualPatching                           -> "Patching…"
+                        isSpotify && uiState.xManagerInstalled    -> "Open xManager"
+                        isSpotify                                  -> "Install xManager"
+                        else                                       -> info.actionLabel
                     }
 
                     val progressStep: String? = when {
@@ -172,6 +175,8 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
                         isManualPatching     -> uiState.patchStep
                         else                 -> null
                     }
+
+                    val cardSubtitle = if (isSpotify) "Uses xManager for Spotify ad blocking" else null
 
                     // Buttons are disabled while the orchestrator owns the flow
                     val actionEnabled = !uiState.isSetupRunning && !isManualPatching
@@ -183,10 +188,13 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
                         actionLabel   = actionLabel,
                         actionEnabled = actionEnabled,
                         progressStep  = progressStep,
+                        subtitle      = cardSubtitle,
                         onAction      = {
                             if (isChrome) {
                                 if (uiState.isDnsRunning) viewModel.onDisableDns(context)
                                 else viewModel.onEnableDns(context)
+                            } else if (isSpotify && uiState.xManagerInstalled) {
+                                viewModel.onOpenXManager(context)
                             } else {
                                 viewModel.onPatch(context, info.packageName)
                             }
@@ -216,6 +224,7 @@ fun AppCard(
     actionLabel: String,
     actionEnabled: Boolean = true,
     progressStep: String? = null,
+    subtitle: String? = null,
     onAction: () -> Unit,
 ) {
     ElevatedCard(modifier = Modifier.fillMaxWidth()) {
@@ -243,6 +252,13 @@ fun AppCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = statusTint(status),
                 )
+                if (subtitle != null) {
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             Spacer(Modifier.width(8.dp))
             when (status) {

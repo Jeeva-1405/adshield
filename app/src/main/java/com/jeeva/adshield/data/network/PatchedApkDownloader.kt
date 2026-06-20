@@ -57,6 +57,28 @@ class PatchedApkDownloader(private val context: Context) {
         }
     }.flowOn(Dispatchers.IO)
 
+    /** Downloads from an arbitrary URL (used for third-party sources like xManager). */
+    fun downloadFrom(url: String, filename: String): Flow<DownloadProgress> = flow {
+        val outFile = getFile(filename)
+        outFile.parentFile?.mkdirs()
+        val response = http.newCall(Request.Builder().url(url).build()).execute()
+        if (!response.isSuccessful) throw IOException("HTTP ${response.code} downloading $filename")
+        val body = response.body ?: throw IOException("Empty response body for $filename")
+        val total = body.contentLength()
+        var received = 0L
+        outFile.outputStream().use { sink ->
+            body.byteStream().use { src ->
+                val buf = ByteArray(8192)
+                var n: Int
+                while (src.read(buf).also { n = it } != -1) {
+                    sink.write(buf, 0, n)
+                    received += n
+                    emit(DownloadProgress(received, total))
+                }
+            }
+        }
+    }.flowOn(Dispatchers.IO)
+
     /** Returns the local cache file for a given asset filename (may not exist yet). */
     fun getFile(filename: String): File =
         File(File(context.cacheDir, "apks"), filename)

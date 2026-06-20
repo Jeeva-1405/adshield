@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.net.VpnService
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
@@ -71,6 +72,8 @@ data class HomeUiState(
     // Whitelist management
     val customWhitelist: Set<String> = emptySet(),
     val showWhitelistDialog: Boolean = false,
+    // xManager state for Spotify card
+    val xManagerInstalled: Boolean = false,
 )
 
 // ── ViewModel ─────────────────────────────────────────────────────────────────
@@ -139,13 +142,19 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             val patched   = prefs.getPatchedApps()
             val statuses  = detector.detectAll(DnsVpnService.isRunning, patched)
             val whitelist = prefs.getUserWhitelist()
+            val xManagerInstalled = try {
+                getApplication<Application>().packageManager
+                    .getPackageInfo(TargetApps.XMANAGER, 0)
+                true
+            } catch (_: PackageManager.NameNotFoundException) { false }
             _uiState.update { it.copy(
-                appStatuses        = statuses,
-                isLoading          = false,
-                isDnsRunning       = DnsVpnService.isRunning,
-                dnsBlockedCount    = DnsVpnService.blockedCount.get(),
+                appStatuses         = statuses,
+                isLoading           = false,
+                isDnsRunning        = DnsVpnService.isRunning,
+                dnsBlockedCount     = DnsVpnService.blockedCount.get(),
                 dnsWhitelistedCount = DnsVpnService.whitelistedCount.get(),
-                customWhitelist    = whitelist,
+                customWhitelist     = whitelist,
+                xManagerInstalled   = xManagerInstalled,
             )}
         }
     }
@@ -252,6 +261,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // ── Public API: manual per-card patching ──────────────────────────────────
+
+    /** Launches xManager so the user can select and install a modded Spotify version. */
+    fun onOpenXManager(context: Context) {
+        val intent = context.packageManager.getLaunchIntentForPackage(TargetApps.XMANAGER)
+        if (intent != null) context.startActivity(intent)
+        else _uiState.update { it.copy(errorMessage = "xManager is not installed") }
+    }
 
     /** Called when user taps "Patch" on a YouTube / YT Music / Spotify card. */
     fun onPatch(context: Context, pkg: String) {
