@@ -96,65 +96,27 @@ jobs:
             exit 1
           fi
 
-          # revanced-patches moved to GitLab after GitHub DMCA takedown (March 2026).
-          # The GitLab release contains only source archives — no pre-built .rvp binary.
-          # We build the .rvp ourselves from the released source tarball.
-          # revanced-integrations is bundled inside the .rvp since CLI v4; no separate download needed.
-          PATCHES_HTTP=$(curl -sSL \
-            -o patches_release.json \
-            -w "%{http_code}" \
-            "https://gitlab.com/api/v4/projects/revanced%2Frevanced-patches/releases/permalink/latest")
-          echo "HTTP $PATCHES_HTTP  ←  GitLab revanced-patches"
-          if [ "$PATCHES_HTTP" != "200" ]; then
-            echo "::error::GitLab API returned HTTP $PATCHES_HTTP for revanced-patches"
-            cat patches_release.json
+          # anddea/revanced-patches is the actively maintained community fork
+          # with pre-built .rvp binary releases on GitHub.
+          PATCHES_JSON=$(curl -sS \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/anddea/revanced-patches/releases/latest")
+          PATCHES_VER=$(echo "$PATCHES_JSON" | jq -r '.tag_name')
+          PATCHES_URL=$(echo "$PATCHES_JSON" \
+            | jq -r '.assets[] | select(.name | endswith(".rvp")) | .browser_download_url' \
+            | head -1)
+
+          if [ -z "$PATCHES_URL" ] || [ "$PATCHES_URL" = "null" ]; then
+            echo "::error::No .rvp asset in anddea/revanced-patches release. Available assets:"
+            echo "$PATCHES_JSON" | jq -r '.assets[].name'
             exit 1
           fi
 
-          PATCHES_VER=$(jq -r '.tag_name' patches_release.json)
-          SOURCE_URL=$(jq -r '.assets.sources[] | select(.format == "tar.gz") | .url' \
-                       patches_release.json | head -1)
+          echo "CLI URL:     $CLI_URL  ($CLI_VER)"
+          echo "PATCHES URL: $PATCHES_URL  ($PATCHES_VER)"
 
-          if [ -z "$SOURCE_URL" ] || [ "$SOURCE_URL" = "null" ]; then
-            echo "::error::No tar.gz source archive in revanced-patches release. Available sources:"
-            jq '.assets.sources' patches_release.json
-            exit 1
-          fi
-
-          echo "Building revanced-patches $PATCHES_VER from source"
-          echo "Source: $SOURCE_URL"
-          curl -sSL --fail-with-body "$SOURCE_URL" -o patches-src.tar.gz
-
-          mkdir revanced-patches-src
-          tar -xzf patches-src.tar.gz -C revanced-patches-src --strip-components=1
-
-          pushd revanced-patches-src
-          chmod +x gradlew
-          ./gradlew build --no-daemon -x test
-          popd
-
-          # Prefer .rvp (native CLI v4+ format); fall back to fat/shadow jar
-          PATCHES_FILE=$(find revanced-patches-src/build/libs -name "*.rvp" | head -1)
-          if [ -z "$PATCHES_FILE" ]; then
-            PATCHES_FILE=$(find revanced-patches-src/build/libs -name "*-all.jar" \
-              ! -name "*sources*" ! -name "*javadoc*" | head -1)
-          fi
-          if [ -z "$PATCHES_FILE" ]; then
-            PATCHES_FILE=$(find revanced-patches-src/build/libs -name "*.jar" \
-              ! -name "*sources*" ! -name "*javadoc*" ! -name "*stub*" | head -1)
-          fi
-
-          if [ -z "$PATCHES_FILE" ]; then
-            echo "::error::Gradle build produced no artifact. Contents of build/libs/:"
-            ls -la revanced-patches-src/build/libs/ 2>/dev/null || echo "(directory missing)"
-            exit 1
-          fi
-
-          echo "Patches artifact: $(du -sh "$PATCHES_FILE") — $PATCHES_FILE"
-          cp "$PATCHES_FILE" revanced-patches.rvp
-
-          echo "CLI URL:  $CLI_URL  ($CLI_VER)"
-          echo "Patches:  built from source $PATCHES_VER  →  revanced-patches.rvp"
+          curl -sSL --fail-with-body "$PATCHES_URL" -o revanced-patches.rvp
 
           curl -sSL --fail-with-body "$CLI_URL" -o revanced-cli.jar
 
